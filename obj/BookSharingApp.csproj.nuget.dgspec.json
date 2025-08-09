@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\Landon\\Code\\BookSharingApp\\WebAPI\\BookSharingApp.csproj": {}
+    "C:\\Users\\Landon\\Code\\BookSharingWebAPI\\BookSharingApp.csproj": {}
   },
   "projects": {
-    "C:\\Users\\Landon\\Code\\BookSharingApp\\WebAPI\\BookSharingApp.csproj": {
+    "C:\\Users\\Landon\\Code\\BookSharingWebAPI\\BookSharingApp.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\Landon\\Code\\BookSharingApp\\WebAPI\\BookSharingApp.csproj",
+        "projectUniqueName": "C:\\Users\\Landon\\Code\\BookSharingWebAPI\\BookSharingApp.csproj",
         "projectName": "BookSharingApp",
-        "projectPath": "C:\\Users\\Landon\\Code\\BookSharingApp\\WebAPI\\BookSharingApp.csproj",
+        "projectPath": "C:\\Users\\Landon\\Code\\BookSharingWebAPI\\BookSharingApp.csproj",
         "packagesPath": "C:\\Users\\Landon\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\Landon\\Code\\BookSharingApp\\WebAPI\\obj\\",
+        "outputPath": "C:\\Users\\Landon\\Code\\BookSharingWebAPI\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\Landon\\AppData\\Roaming\\NuGet\\NuGet.Config"
