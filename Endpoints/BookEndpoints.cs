@@ -27,8 +27,8 @@ namespace BookSharingApp.Endpoints
             .WithName("AddBook")
             .WithOpenApi();
 
-            app.MapGet("/books/search", (string? title, string? author, MockDatabase db) => 
-                db.SearchBooks(title, author))
+            app.MapGet("/books/search", (string? search, MockDatabase db) => 
+                db.SearchBooks(search))
                .WithName("SearchBooks")
                .WithOpenApi();
         }
