@@ -31,19 +31,11 @@ namespace BookSharingApp.Data
             return book;
         }
 
-        public IEnumerable<Book> SearchBooks(string? title = null, string? author = null)
+        public IEnumerable<Book> SearchBooks(string? search = null)
         {
             var query = _books.AsQueryable();
-
-            if (!string.IsNullOrEmpty(title))
-            {
-                query = query.Where(b => b.Title.Contains(title, StringComparison.OrdinalIgnoreCase));
-            }
-
-            if (!string.IsNullOrEmpty(author))
-            {
-                query = query.Where(b => b.Author.Contains(author, StringComparison.OrdinalIgnoreCase));
-            }
+            query = query.Where(b => b.Title.Contains(search ?? string.Empty, StringComparison.OrdinalIgnoreCase) 
+                             || b.Author.Contains(search ?? string.Empty, StringComparison.OrdinalIgnoreCase));
 
             return query.ToList();
         }
