@@ -23,6 +23,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseStaticFiles();
+
 // Map book endpoints
 app.MapBookEndpoints();
 
