@@ -21,6 +21,13 @@ This is a .NET 8 Web API project for a book sharing application built using ASP.
 - `dotnet restore` - Restore NuGet packages
 - `dotnet add package <PackageName>` - Add a new package
 
+### Docker Commands
+- `docker build -t booksharing-api .` - Build Docker image
+- `docker run -p 3000:8080 booksharing-api` - Run container on port 3000
+- `docker-compose up` - Start with docker-compose (production mode)
+- `docker-compose --profile dev up` - Start with docker-compose (development mode)
+- `docker-compose down` - Stop and remove containers
+
 ## Architecture
 
 ### Project Structure
@@ -51,3 +58,19 @@ This is a .NET 8 Web API project for a book sharing application built using ASP.
 - **appsettings.json** - Production configuration
 - **appsettings.Development.json** - Development-specific settings
 - **launchSettings.json** - Development server profiles and URLs
+
+## Docker Deployment
+
+### Container Configuration
+- **Port 8080** - Internal container port (HTTP)
+- **Port 3000** - External mapped port for production
+- **Port 3001** - External mapped port for development mode
+- Static files (wwwroot) are volume-mounted for easy updates
+
+### Docker Files
+- **Dockerfile** - Multi-stage build configuration using .NET 8 SDK and runtime
+- **.dockerignore** - Excludes build artifacts and unnecessary files from Docker context
+- **docker-compose.yml** - Container orchestration with production and development profiles
+
+### Prerequisites
+- Docker Desktop for Windows must be installed to build and run containers
