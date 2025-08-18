@@ -1,0 +1,30 @@
+services:
+  booksharing-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+    volumes:
+      # Mount static files for development
+      - ./wwwroot:/app/wwwroot
+    restart: unless-stopped
+
+  # Development service with hot reload
+  booksharing-api-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3001:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+    volumes:
+      - ./wwwroot:/app/wwwroot
+    profiles:
+      - dev
+    restart: unless-stopped
