@@ -21,6 +21,23 @@ This is a .NET 8 Web API project for a book sharing application built using ASP.
 - `dotnet restore` - Restore NuGet packages
 - `dotnet add package <PackageName>` - Add a new package
 
+### Local Development Setup
+For local PostgreSQL development without Docker, set up user secrets for secure credential storage:
+
+```bash
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=booksharingdb;Username=bookuser;Password=YOUR_LOCAL_PASSWORD"
+```
+
+Replace `YOUR_LOCAL_PASSWORD` with your local PostgreSQL password. This keeps credentials out of source control while allowing local development.
+
+**Prerequisites for local development:**
+1. Install PostgreSQL locally
+2. Create database: `CREATE DATABASE booksharingdb;`
+3. Create user: `CREATE USER bookuser WITH PASSWORD 'your_password';`
+4. Grant permissions: `GRANT ALL PRIVILEGES ON DATABASE booksharingdb TO bookuser;`
+5. Set user secrets (command above)
+6. Run with `dotnet run`
+
 ### Docker Commands
 
 #### First Time Setup
@@ -60,6 +77,30 @@ This is a .NET 8 Web API project for a book sharing application built using ASP.
 - GET `/books/{id}` - Get book by ID
 - POST `/books` - Add new book
 - GET `/books/search?title=&author=` - Search books by title and/or author
+
+## API Endpoints
+
+### Local Development (without Docker)
+- HTTP: `http://localhost:5155`
+- HTTPS: `https://localhost:7061`
+
+### Docker Development
+- `http://localhost:3001`
+
+### Docker Production  
+- `http://localhost:3000`
+
+**Example API calls:**
+```bash
+# Local development
+curl http://localhost:5155/books
+
+# Docker development
+curl http://localhost:3001/books
+
+# Docker production
+curl http://localhost:3000/books
+```
 
 ## Configuration
 - **appsettings.json** - Production configuration
