@@ -26,16 +26,17 @@ For local PostgreSQL development without Docker, set up user secrets for secure 
 
 ```bash
 dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=booksharingdb;Username=bookuser;Password=YOUR_LOCAL_PASSWORD"
+dotnet user-secrets set "JWT:Key" "YOUR_JWT_SECRET_KEY"
 ```
 
-Replace `YOUR_LOCAL_PASSWORD` with your local PostgreSQL password. This keeps credentials out of source control while allowing local development.
+Replace `YOUR_LOCAL_PASSWORD` with your local PostgreSQL password and `YOUR_JWT_SECRET_KEY` with a secure 32+ character key for JWT token signing. This keeps credentials out of source control while allowing local development.
 
 **Prerequisites for local development:**
 1. Install PostgreSQL locally
 2. Create database: `CREATE DATABASE booksharingdb;`
 3. Create user: `CREATE USER bookuser WITH PASSWORD 'your_password';`
 4. Grant permissions: `GRANT ALL PRIVILEGES ON DATABASE booksharingdb TO bookuser;`
-5. Set user secrets (command above)
+5. Set user secrets (commands above)
 6. Run with `dotnet run`
 
 ### Docker Commands
@@ -73,10 +74,19 @@ Replace `YOUR_LOCAL_PASSWORD` with your local PostgreSQL password. This keeps cr
 - Book model is a simple POCO with Id, Title, Author, and ISBN properties
 
 ### Available Endpoints
+
+#### Authentication Endpoints
+- POST `/auth/register` - Register a new user (email, password, firstName, lastName)
+- POST `/auth/login` - Login with email and password
+- POST `/auth/refresh` - Refresh access token with refresh token
+
+#### Book Endpoints (Require Authentication)
 - GET `/books` - Get all books
 - GET `/books/{id}` - Get book by ID
 - POST `/books` - Add new book
 - GET `/books/search?title=&author=` - Search books by title and/or author
+
+**Note:** All book endpoints require a valid JWT token in the Authorization header: `Authorization: Bearer <token>`
 
 ## API Endpoints
 
