@@ -1,5 +1,6 @@
 using BookSharingApp.Data;
 using BookSharingApp.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace BookSharingApp.Endpoints
 {
@@ -7,30 +8,42 @@ namespace BookSharingApp.Endpoints
     {
         public static void MapBookEndpoints(this WebApplication app)
         {
-            app.MapGet("/books", (MockDatabase db) => db.GetAllBooks())
+            app.MapGet("/books", async (ApplicationDbContext context) => 
+                await context.Books.ToListAsync())
                .WithName("GetAllBooks")
                .WithOpenApi();
 
-            app.MapGet("/books/{id:int}", (int id, MockDatabase db) => 
+            app.MapGet("/books/{id:int}", async (int id, ApplicationDbContext context) => 
             {
-                var book = db.GetBookById(id);
+                var book = await context.Books.FindAsync(id);
                 return book is not null ? Results.Ok(book) : Results.NotFound();
             })
             .WithName("GetBookById")
             .WithOpenApi();
 
-            app.MapPost("/books", (Book book, MockDatabase db) => 
+            app.MapPost("/books", async (Book book, ApplicationDbContext context) => 
             {
-                var createdBook = db.AddBook(book);
-                return Results.Created($"/books/{createdBook.Id}", createdBook);
+                book.Id = 0; // Ensure EF generates new ID
+                context.Books.Add(book);
+                await context.SaveChangesAsync();
+                return Results.Created($"/books/{book.Id}", book);
             })
             .WithName("AddBook")
             .WithOpenApi();
 
-            app.MapGet("/books/search", (string? search, MockDatabase db) => 
-                db.SearchBooks(search))
-               .WithName("SearchBooks")
-               .WithOpenApi();
+            app.MapGet("/books/search", async (string? search, ApplicationDbContext context) => 
+            {
+                var query = context.Books.AsQueryable();
+                
+                if (!string.IsNullOrEmpty(search))
+                {
+                    query = query.Where(b => EF.Functions.ILike(b.Title, $"%{search}%") || EF.Functions.ILike(b.Author, $"%{search}%"));
+                }
+                
+                return await query.ToListAsync();
+            })
+            .WithName("SearchBooks")
+            .WithOpenApi();
         }
     }
 }

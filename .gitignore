@@ -29,3 +29,6 @@ bld/
 # NuGet Symbol Packages
 *.snupkg
 packages/
+
+# Environment variables
+.env
