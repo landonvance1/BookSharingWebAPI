@@ -1,4 +1,16 @@
 services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
   booksharing-api:
     build:
       context: .
@@ -8,9 +20,14 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING}
     volumes:
       # Mount static files for development
       - ./wwwroot:/app/wwwroot
+    depends_on:
+      - postgres
+    profiles:
+      - prod
     restart: unless-stopped
 
   # Development service with hot reload
@@ -23,8 +40,14 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING}
     volumes:
       - ./wwwroot:/app/wwwroot
+    depends_on:
+      - postgres
     profiles:
       - dev
     restart: unless-stopped
+
+volumes:
+  postgres_data:

@@ -9,7 +9,7 @@ This is a .NET 8 Web API project for a book sharing application built using ASP.
 ## Development Commands
 
 ### Building and Running
-- `dotnet build` - Build the application
+- `dotnet build BookSharingApp.csproj` - Build the application (use specific project file due to .sln presence)
 - `dotnet run` - Run the application (starts on https://localhost:7061 and http://localhost:5155)
 - `dotnet run --launch-profile http` - Run with HTTP only
 - `dotnet run --launch-profile https` - Run with HTTPS (default)
@@ -22,11 +22,18 @@ This is a .NET 8 Web API project for a book sharing application built using ASP.
 - `dotnet add package <PackageName>` - Add a new package
 
 ### Docker Commands
+
+#### First Time Setup
+- `cp .env.example .env` - Copy environment template (required for local development)
+- Edit `.env` file with your preferred database credentials
+
+#### Running the Application
 - `docker build -t booksharing-api .` - Build Docker image
 - `docker run -p 3000:8080 booksharing-api` - Run container on port 3000
-- `docker-compose up` - Start with docker-compose (production mode)
-- `docker-compose --profile dev up` - Start with docker-compose (development mode)
+- `docker-compose --profile prod up` - Start with docker-compose (production mode, port 3000)
+- `docker-compose --profile dev up` - Start with docker-compose (development mode, port 3001)
 - `docker-compose down` - Stop and remove containers
+- `docker-compose up --build` - Rebuild and start containers
 
 ## Architecture
 
@@ -74,3 +81,13 @@ This is a .NET 8 Web API project for a book sharing application built using ASP.
 
 ### Prerequisites
 - Docker Desktop for Windows must be installed to build and run containers
+- Create `.env` file from `.env.example` template for local development
+
+### Environment Variables
+The application uses environment variables for database configuration to keep credentials secure:
+- **POSTGRES_DB** - Database name
+- **POSTGRES_USER** - Database username  
+- **POSTGRES_PASSWORD** - Database password
+- **DB_CONNECTION_STRING** - Full connection string for the application
+
+For local development, copy `.env.example` to `.env` and customize the values as needed.
