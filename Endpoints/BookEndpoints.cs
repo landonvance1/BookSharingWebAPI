@@ -1,5 +1,6 @@
 using BookSharingApp.Data;
 using BookSharingApp.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 
 namespace BookSharingApp.Endpoints
@@ -8,12 +9,14 @@ namespace BookSharingApp.Endpoints
     {
         public static void MapBookEndpoints(this WebApplication app)
         {
-            app.MapGet("/books", async (ApplicationDbContext context) => 
+            var books = app.MapGroup("/books").WithTags("Books").RequireAuthorization();
+
+            books.MapGet("/", async (ApplicationDbContext context) => 
                 await context.Books.ToListAsync())
                .WithName("GetAllBooks")
                .WithOpenApi();
 
-            app.MapGet("/books/{id:int}", async (int id, ApplicationDbContext context) => 
+            books.MapGet("/{id:int}", async (int id, ApplicationDbContext context) => 
             {
                 var book = await context.Books.FindAsync(id);
                 return book is not null ? Results.Ok(book) : Results.NotFound();
@@ -21,7 +24,7 @@ namespace BookSharingApp.Endpoints
             .WithName("GetBookById")
             .WithOpenApi();
 
-            app.MapPost("/books", async (Book book, ApplicationDbContext context) => 
+            books.MapPost("/", async (Book book, ApplicationDbContext context) => 
             {
                 book.Id = 0; // Ensure EF generates new ID
                 context.Books.Add(book);
@@ -31,7 +34,7 @@ namespace BookSharingApp.Endpoints
             .WithName("AddBook")
             .WithOpenApi();
 
-            app.MapGet("/books/search", async (string? search, ApplicationDbContext context) => 
+            books.MapGet("/search", async (string? search, ApplicationDbContext context) => 
             {
                 var query = context.Books.AsQueryable();
                 
