@@ -21,6 +21,7 @@ services:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING}
+      - JWT_KEY=${JWT_KEY}
     volumes:
       # Mount static files for development
       - ./wwwroot:/app/wwwroot
@@ -41,6 +42,7 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING}
+      - JWT_KEY=${JWT_KEY}
     volumes:
       - ./wwwroot:/app/wwwroot
     depends_on:
