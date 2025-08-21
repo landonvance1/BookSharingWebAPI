@@ -9,10 +9,13 @@ namespace BookSharingApp.Data
         public static async Task SeedAsync(ApplicationDbContext context, UserManager<User> userManager)
         {
             await context.Database.EnsureCreatedAsync();
-            
+
             // Seed users first
             await SeedUsersAsync(userManager);
-            
+
+            // Seed communities
+            await SeedCommunitiesAsync(context);
+
             // Seed books
             await SeedBooksAsync(context);
         }
@@ -37,7 +40,7 @@ namespace BookSharingApp.Data
 
                 (new User
                 {
-                    Id = "user-002", 
+                    Id = "user-002",
                     UserName = "john.doe@email.com",
                     Email = "john.doe@email.com",
                     FirstName = "John",
@@ -48,7 +51,7 @@ namespace BookSharingApp.Data
                 (new User
                 {
                     Id = "user-003",
-                    UserName = "jane.smith@email.com", 
+                    UserName = "jane.smith@email.com",
                     Email = "jane.smith@email.com",
                     FirstName = "Jane",
                     LastName = "Smith",
@@ -59,7 +62,7 @@ namespace BookSharingApp.Data
                 {
                     Id = "user-004",
                     UserName = "bob.wilson@email.com",
-                    Email = "bob.wilson@email.com", 
+                    Email = "bob.wilson@email.com",
                     FirstName = "Bob",
                     LastName = "Wilson",
                     EmailConfirmed = true
@@ -70,7 +73,7 @@ namespace BookSharingApp.Data
                     Id = "user-005",
                     UserName = "alice.brown@email.com",
                     Email = "alice.brown@email.com",
-                    FirstName = "Alice", 
+                    FirstName = "Alice",
                     LastName = "Brown",
                     EmailConfirmed = true
                 }, "password")
@@ -133,6 +136,24 @@ namespace BookSharingApp.Data
             };
 
             context.Books.AddRange(books);
+            await context.SaveChangesAsync();
+        }
+
+        private static async Task SeedCommunitiesAsync(ApplicationDbContext context)
+        {
+            if (await context.Communities.AnyAsync())
+                return; // Database has been seeded
+
+            var communities = new List<Community>
+            {
+                new Community { Id = 1, Name = "The Loop", Active = true },
+                new Community { Id = 2, Name = "Cornerstone", Active = true },
+                new Community { Id = 3, Name = "Tower Grove South", Active = true },
+                new Community { Id = 4, Name = "Inactive Group", Active = false },
+                new Community { Id = 5, Name = "DnD Boys", Active = true }
+            };
+
+            context.Communities.AddRange(communities);
             await context.SaveChangesAsync();
         }
     }

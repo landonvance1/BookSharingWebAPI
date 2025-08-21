@@ -13,6 +13,7 @@ namespace BookSharingApp.Data
 
         public DbSet<Book> Books { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
+        public DbSet<Community> Communities { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -49,6 +50,15 @@ namespace BookSharingApp.Data
                 entity.Ignore(e => e.IsExpired);
                 entity.Ignore(e => e.IsRevoked);
                 entity.Ignore(e => e.IsActive);
+            });
+
+            modelBuilder.Entity<Community>(entity =>
+            {
+                entity.ToTable("community");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("community_id").ValueGeneratedOnAdd();
+                entity.Property(e => e.Name).HasColumnName("name").IsRequired();
+                entity.Property(e => e.Active).HasColumnName("active").IsRequired();
             });
         }
     }
