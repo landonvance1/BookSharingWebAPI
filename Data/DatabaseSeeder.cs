@@ -1,14 +1,97 @@
 using BookSharingApp.Models;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace BookSharingApp.Data
 {
     public static class DatabaseSeeder
     {
-        public static async Task SeedAsync(ApplicationDbContext context)
+        public static async Task SeedAsync(ApplicationDbContext context, UserManager<User> userManager)
         {
             await context.Database.EnsureCreatedAsync();
             
+            // Seed users first
+            await SeedUsersAsync(userManager);
+            
+            // Seed books
+            await SeedBooksAsync(context);
+        }
+
+        private static async Task SeedUsersAsync(UserManager<User> userManager)
+        {
+            // Check if users already exist
+            if (userManager.Users.Any())
+                return;
+
+            var seedUsers = new List<(User user, string password)>
+            {
+                (new User
+                {
+                    Id = "user-001",
+                    UserName = "l@v.com",
+                    Email = "l@v.com",
+                    FirstName = "Landon",
+                    LastName = "Vance",
+                    EmailConfirmed = true
+                }, "password"),
+
+                (new User
+                {
+                    Id = "user-002", 
+                    UserName = "john.doe@email.com",
+                    Email = "john.doe@email.com",
+                    FirstName = "John",
+                    LastName = "Doe",
+                    EmailConfirmed = true
+                }, "password"),
+
+                (new User
+                {
+                    Id = "user-003",
+                    UserName = "jane.smith@email.com", 
+                    Email = "jane.smith@email.com",
+                    FirstName = "Jane",
+                    LastName = "Smith",
+                    EmailConfirmed = true
+                }, "password"),
+
+                (new User
+                {
+                    Id = "user-004",
+                    UserName = "bob.wilson@email.com",
+                    Email = "bob.wilson@email.com", 
+                    FirstName = "Bob",
+                    LastName = "Wilson",
+                    EmailConfirmed = true
+                }, "password"),
+
+                (new User
+                {
+                    Id = "user-005",
+                    UserName = "alice.brown@email.com",
+                    Email = "alice.brown@email.com",
+                    FirstName = "Alice", 
+                    LastName = "Brown",
+                    EmailConfirmed = true
+                }, "password")
+            };
+
+            foreach (var (user, password) in seedUsers)
+            {
+                var existingUser = await userManager.FindByEmailAsync(user.Email);
+                if (existingUser == null)
+                {
+                    var result = await userManager.CreateAsync(user, password);
+                    if (!result.Succeeded)
+                    {
+                        throw new Exception($"Failed to create user {user.Email}: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+                    }
+                }
+            }
+        }
+
+        private static async Task SeedBooksAsync(ApplicationDbContext context)
+        {
             if (await context.Books.AnyAsync())
                 return; // Database has been seeded
 
