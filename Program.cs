@@ -90,5 +90,6 @@ app.UseStaticFiles();
 app.MapAuthEndpoints();
 app.MapBookEndpoints();
 app.MapCommunityEndpoints();
+app.MapCommunityUserEndpoints();
 
 app.Run();

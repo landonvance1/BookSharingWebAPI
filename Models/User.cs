@@ -17,5 +17,7 @@ namespace BookSharingApp.Models
         
         [NotMapped]
         public string FullName => $"{FirstName} {LastName}";
+        
+        public ICollection<CommunityUser> JoinedCommunities { get; set; } = new List<CommunityUser>();
     }
 }

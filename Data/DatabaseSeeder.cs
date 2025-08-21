@@ -16,6 +16,9 @@ namespace BookSharingApp.Data
             // Seed communities
             await SeedCommunitiesAsync(context);
 
+            // Seed community users
+            await SeedCommunityUsersAsync(context);
+
             // Seed books
             await SeedBooksAsync(context);
         }
@@ -81,7 +84,7 @@ namespace BookSharingApp.Data
 
             foreach (var (user, password) in seedUsers)
             {
-                var existingUser = await userManager.FindByEmailAsync(user.Email);
+                var existingUser = await userManager.FindByEmailAsync(user.Email!);
                 if (existingUser == null)
                 {
                     var result = await userManager.CreateAsync(user, password);
@@ -154,6 +157,41 @@ namespace BookSharingApp.Data
             };
 
             context.Communities.AddRange(communities);
+            await context.SaveChangesAsync();
+        }
+
+        private static async Task SeedCommunityUsersAsync(ApplicationDbContext context)
+        {
+            if (await context.CommunityUsers.AnyAsync())
+                return; // Database has been seeded
+
+            var communityUsers = new List<CommunityUser>
+            {
+                // The Loop community members
+                new CommunityUser { CommunityId = 1, UserId = "user-001" }, // Landon
+                new CommunityUser { CommunityId = 1, UserId = "user-002" }, // John
+                new CommunityUser { CommunityId = 1, UserId = "user-003" }, // Jane
+
+                // Cornerstone community members
+                new CommunityUser { CommunityId = 2, UserId = "user-001" }, // Landon
+                new CommunityUser { CommunityId = 2, UserId = "user-004" }, // Bob
+                new CommunityUser { CommunityId = 2, UserId = "user-005" }, // Alice
+
+                // Tower Grove South community members
+                new CommunityUser { CommunityId = 3, UserId = "user-002" }, // John
+                new CommunityUser { CommunityId = 3, UserId = "user-003" }, // Jane
+                new CommunityUser { CommunityId = 3, UserId = "user-004" }, // Bob
+
+                // Inactive Group community members
+                new CommunityUser { CommunityId = 4, UserId = "user-001" }, // Landon
+
+                // DnD Boys community members
+                new CommunityUser { CommunityId = 5, UserId = "user-001" }, // Landon
+                new CommunityUser { CommunityId = 5, UserId = "user-002" }, // John
+                new CommunityUser { CommunityId = 5, UserId = "user-004" }  // Bob
+            };
+
+            context.CommunityUsers.AddRange(communityUsers);
             await context.SaveChangesAsync();
         }
     }

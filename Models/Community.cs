@@ -18,5 +18,7 @@ namespace BookSharingApp.Models
         [Required]
         [Column("active")]
         public bool Active { get; set; }
+        
+        public ICollection<CommunityUser> Members { get; set; } = new List<CommunityUser>();
     }
 }
