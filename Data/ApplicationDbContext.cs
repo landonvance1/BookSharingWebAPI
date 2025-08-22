@@ -15,6 +15,7 @@ namespace BookSharingApp.Data
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<Community> Communities { get; set; }
         public DbSet<CommunityUser> CommunityUsers { get; set; }
+        public DbSet<UserBook> UserBooks { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -70,6 +71,18 @@ namespace BookSharingApp.Data
                 entity.Property(e => e.UserId).HasColumnName("user_id").IsRequired();
                 entity.HasOne(e => e.Community).WithMany(c => c.Members).HasForeignKey(e => e.CommunityId);
                 entity.HasOne(e => e.User).WithMany(u => u.JoinedCommunities).HasForeignKey(e => e.UserId);
+            });
+
+            modelBuilder.Entity<UserBook>(entity =>
+            {
+                entity.ToTable("user_book");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("user_book_id").ValueGeneratedOnAdd();
+                entity.Property(e => e.UserId).HasColumnName("user_id").IsRequired();
+                entity.Property(e => e.BookId).HasColumnName("book_id").IsRequired();
+                entity.Property(e => e.Status).HasColumnName("status").IsRequired();
+                entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId);
+                entity.HasOne(e => e.Book).WithMany().HasForeignKey(e => e.BookId);
             });
         }
     }

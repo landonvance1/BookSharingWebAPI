@@ -133,7 +133,7 @@ namespace BookSharingApp.Endpoints
                 User = new UserDto
                 {
                     Id = user.Id,
-                    Email = user.Email,
+                    Email = user.Email!,
                     FirstName = user.FirstName,
                     LastName = user.LastName,
                     FullName = user.FullName
@@ -186,7 +186,7 @@ namespace BookSharingApp.Endpoints
                 User = new UserDto
                 {
                     Id = storedRefreshToken.User.Id,
-                    Email = storedRefreshToken.User.Email,
+                    Email = storedRefreshToken.User.Email!,
                     FirstName = storedRefreshToken.User.FirstName,
                     LastName = storedRefreshToken.User.LastName,
                     FullName = storedRefreshToken.User.FullName
