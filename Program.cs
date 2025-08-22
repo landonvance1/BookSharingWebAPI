@@ -91,5 +91,6 @@ app.MapAuthEndpoints();
 app.MapBookEndpoints();
 app.MapCommunityEndpoints();
 app.MapCommunityUserEndpoints();
+app.MapUserBookEndpoints();
 
 app.Run();
