@@ -33,11 +33,20 @@ Replace `YOUR_LOCAL_PASSWORD` with your local PostgreSQL password and `YOUR_JWT_
 
 **Prerequisites for local development:**
 1. Install PostgreSQL locally
-2. Create database: `CREATE DATABASE booksharingdb;`
-3. Create user: `CREATE USER bookuser WITH PASSWORD 'your_password';`
-4. Grant permissions: `GRANT ALL PRIVILEGES ON DATABASE booksharingdb TO bookuser;`
-5. Set user secrets (commands above)
-6. Run with `dotnet run`
+2. Connect as postgres superuser: `sudo -i -u postgres psql`
+3. Create database: `CREATE DATABASE booksharingdb;`
+4. Create user: `CREATE USER bookuser WITH PASSWORD 'your_password';`
+5. Grant database permissions: `GRANT ALL PRIVILEGES ON DATABASE booksharingdb TO bookuser;`
+6. Connect to the database: `\c booksharingdb`
+7. Grant schema permissions (required for PostgreSQL 15+):
+   ```sql
+   GRANT USAGE, CREATE ON SCHEMA public TO bookuser;
+   GRANT ALL PRIVILEGES ON SCHEMA public TO bookuser;
+   ALTER SCHEMA public OWNER TO bookuser;
+   ```
+8. Exit PostgreSQL: `\q`
+9. Set user secrets (commands above)
+10. Run with `dotnet run`
 
 ### Docker Commands
 
