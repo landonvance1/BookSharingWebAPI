@@ -2,6 +2,7 @@ using BookSharingApp.Data;
 using BookSharingApp.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace BookSharingApp.Endpoints
 {
@@ -34,16 +35,18 @@ namespace BookSharingApp.Endpoints
             .WithName("AddBook")
             .WithOpenApi();
 
-            books.MapGet("/search", async (string? search, ApplicationDbContext context) => 
+            books.MapGet("/search", async (string? search, HttpContext httpContext, ApplicationDbContext context) => 
             {
-                var query = context.Books.AsQueryable();
+                var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
                 
-                if (!string.IsNullOrEmpty(search))
-                {
-                    query = query.Where(b => EF.Functions.ILike(b.Title, $"%{search}%") || EF.Functions.ILike(b.Author, $"%{search}%"));
-                }
+                var results = await context.Database
+                    .SqlQueryRaw<SearchBookResult>(
+                        "SELECT * FROM search_accessible_books({0}, {1})", 
+                        currentUserId, 
+                        search ?? string.Empty)
+                    .ToListAsync();
                 
-                return await query.ToListAsync();
+                return Results.Ok(results);
             })
             .WithName("SearchBooks")
             .WithOpenApi();
