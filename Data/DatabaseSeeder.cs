@@ -107,39 +107,39 @@ namespace BookSharingApp.Data
 
             var books = new List<Book>
             {
-                new Book { Title = "The Great Gatsby", Author = "F. Scott Fitzgerald", ISBN = "978-0-7432-7356-5" },
-                new Book { Title = "To Kill a Mockingbird", Author = "Harper Lee", ISBN = "978-0-06-112008-4" },
-                new Book { Title = "1984", Author = "George Orwell", ISBN = "978-0-452-28423-4" },
+                new Book { Title = "The Great Gatsby", Author = "F. Scott Fitzgerald", ISBN = "978-0-7432-7356-5" }, //id 1
+                new Book { Title = "To Kill a Mockingbird", Author = "Harper Lee", ISBN = "978-0-06-112008-4" }, //id 2
+                new Book { Title = "1984", Author = "George Orwell", ISBN = "978-0-452-28423-4" }, //id 3
                 
                 // Hilary Mantel
-                new Book { Title = "Wolf Hall", Author = "Hilary Mantel", ISBN = "978-0-8050-8068-6" },
-                new Book { Title = "Bring Up the Bodies", Author = "Hilary Mantel", ISBN = "978-0-8050-9049-4" },
-                new Book { Title = "The Mirror & the Light", Author = "Hilary Mantel", ISBN = "978-0-8050-9840-7" },
-                new Book { Title = "A Place of Greater Safety", Author = "Hilary Mantel", ISBN = "978-0-14-012419-0" },
+                new Book { Title = "Wolf Hall", Author = "Hilary Mantel", ISBN = "978-0-8050-8068-6" }, //id 4
+                new Book { Title = "Bring Up the Bodies", Author = "Hilary Mantel", ISBN = "978-0-8050-9049-4" }, //id 5
+                new Book { Title = "The Mirror & the Light", Author = "Hilary Mantel", ISBN = "978-0-8050-9840-7" }, //id 6
+                new Book { Title = "A Place of Greater Safety", Author = "Hilary Mantel", ISBN = "978-0-14-012419-0" }, //id 7
                 
                 // Joe Abercrombie
-                new Book { Title = "The Blade Itself", Author = "Joe Abercrombie", ISBN = "978-0-575-07972-5" },
-                new Book { Title = "Before They Are Hanged", Author = "Joe Abercrombie", ISBN = "978-0-575-07973-2" },
-                new Book { Title = "Last Argument of Kings", Author = "Joe Abercrombie", ISBN = "978-0-575-07974-9" },
-                new Book { Title = "Best Served Cold", Author = "Joe Abercrombie", ISBN = "978-0-575-08311-1" },
+                new Book { Title = "The Blade Itself", Author = "Joe Abercrombie", ISBN = "978-0-575-07972-5" }, //id 8
+                new Book { Title = "Before They Are Hanged", Author = "Joe Abercrombie", ISBN = "978-0-575-07973-2" }, //id 9
+                new Book { Title = "Last Argument of Kings", Author = "Joe Abercrombie", ISBN = "978-0-575-07974-9" }, //id 10
+                new Book { Title = "Best Served Cold", Author = "Joe Abercrombie", ISBN = "978-0-575-08311-1" }, //id 11
                 
                 // Ursula K Le Guin
-                new Book { Title = "The Left Hand of Darkness", Author = "Ursula K Le Guin", ISBN = "978-0-441-47812-5" },
-                new Book { Title = "A Wizard of Earthsea", Author = "Ursula K Le Guin", ISBN = "978-0-553-38304-1" },
-                new Book { Title = "The Dispossessed", Author = "Ursula K Le Guin", ISBN = "978-0-06-051275-5" },
-                new Book { Title = "The Lathe of Heaven", Author = "Ursula K Le Guin", ISBN = "978-0-06-125901-3" },
+                new Book { Title = "The Left Hand of Darkness", Author = "Ursula K Le Guin", ISBN = "978-0-441-47812-5" }, //id 12
+                new Book { Title = "A Wizard of Earthsea", Author = "Ursula K Le Guin", ISBN = "978-0-553-38304-1" }, //id 13
+                new Book { Title = "The Dispossessed", Author = "Ursula K Le Guin", ISBN = "978-0-06-051275-5" }, //id 14
+                new Book { Title = "The Lathe of Heaven", Author = "Ursula K Le Guin", ISBN = "978-0-06-125901-3" }, //id 15
                 
                 // Robin Hobb
-                new Book { Title = "Assassin's Apprentice", Author = "Robin Hobb", ISBN = "978-0-553-57339-4" },
-                new Book { Title = "Royal Assassin", Author = "Robin Hobb", ISBN = "978-0-553-56440-8" },
-                new Book { Title = "Assassin's Quest", Author = "Robin Hobb", ISBN = "978-0-553-56441-5" },
-                new Book { Title = "Ship of Magic", Author = "Robin Hobb", ISBN = "978-0-553-56619-8" },
+                new Book { Title = "Assassin's Apprentice", Author = "Robin Hobb", ISBN = "978-0-553-57339-4" }, //id 16
+                new Book { Title = "Royal Assassin", Author = "Robin Hobb", ISBN = "978-0-553-56440-8" }, //id 17
+                new Book { Title = "Assassin's Quest", Author = "Robin Hobb", ISBN = "978-0-553-56441-5" }, //id 18
+                new Book { Title = "Ship of Magic", Author = "Robin Hobb", ISBN = "978-0-553-56619-8" }, //id 19
                 
                 // Susanna Clarke
-                new Book { Title = "Jonathan Strange & Mr Norrell", Author = "Susanna Clarke", ISBN = "978-0-7475-8173-4" },
-                new Book { Title = "Piranesi", Author = "Susanna Clarke", ISBN = "978-1-63557-563-3" },
-                new Book { Title = "The Ladies of Grace Adieu", Author = "Susanna Clarke", ISBN = "978-0-7475-8457-5" },
-                new Book { Title = "The Wood at Midwinter", Author = "Susanna Clarke", ISBN = "978-1-63557-982-2" }
+                new Book { Title = "Jonathan Strange & Mr Norrell", Author = "Susanna Clarke", ISBN = "978-0-7475-8173-4" }, //id 20
+                new Book { Title = "Piranesi", Author = "Susanna Clarke", ISBN = "978-1-63557-563-3" }, //id 21
+                new Book { Title = "The Ladies of Grace Adieu", Author = "Susanna Clarke", ISBN = "978-0-7475-8457-5" }, //id 22
+                new Book { Title = "The Wood at Midwinter", Author = "Susanna Clarke", ISBN = "978-1-63557-982-2" } //id 23
             };
 
             context.Books.AddRange(books);
@@ -215,26 +215,26 @@ namespace BookSharingApp.Data
                 // John's books (user-002)
                 new UserBook { UserId = "user-002", BookId = 1, Status = BookStatus.Available }, // The Great Gatsby - SHARED
                 new UserBook { UserId = "user-002", BookId = 9, Status = BookStatus.Available }, // Before They Are Hanged
-                new UserBook { UserId = "user-002", BookId = 15, Status = BookStatus.OnLoan }, // Assassin's Apprentice
-                new UserBook { UserId = "user-002", BookId = 19, Status = BookStatus.Available }, // Jonathan Strange & Mr Norrell
+                new UserBook { UserId = "user-002", BookId = 16, Status = BookStatus.OnLoan }, // Assassin's Apprentice
+                new UserBook { UserId = "user-002", BookId = 20, Status = BookStatus.Available }, // Jonathan Strange & Mr Norrell
 
                 // Jane's books (user-003)
                 new UserBook { UserId = "user-003", BookId = 3, Status = BookStatus.Available }, // 1984
                 new UserBook { UserId = "user-003", BookId = 5, Status = BookStatus.Available }, // Bring Up the Bodies
                 new UserBook { UserId = "user-003", BookId = 8, Status = BookStatus.Available }, // The Blade Itself - SHARED
-                new UserBook { UserId = "user-003", BookId = 20, Status = BookStatus.Unavailable }, // Piranesi
+                new UserBook { UserId = "user-003", BookId = 21, Status = BookStatus.Unavailable }, // Piranesi
 
                 // Bob's books (user-004)
                 new UserBook { UserId = "user-004", BookId = 6, Status = BookStatus.Available }, // The Mirror & the Light
                 new UserBook { UserId = "user-004", BookId = 10, Status = BookStatus.Available }, // Last Argument of Kings
                 new UserBook { UserId = "user-004", BookId = 12, Status = BookStatus.OnLoan }, // The Left Hand of Darkness - SHARED
-                new UserBook { UserId = "user-004", BookId = 16, Status = BookStatus.Available }, // Royal Assassin
+                new UserBook { UserId = "user-004", BookId = 17, Status = BookStatus.Available }, // Royal Assassin
 
                 // Alice's books (user-005)
                 new UserBook { UserId = "user-005", BookId = 7, Status = BookStatus.Available }, // A Place of Greater Safety
                 new UserBook { UserId = "user-005", BookId = 11, Status = BookStatus.Available }, // Best Served Cold
                 new UserBook { UserId = "user-005", BookId = 12, Status = BookStatus.Available }, // The Left Hand of Darkness - SHARED
-                new UserBook { UserId = "user-005", BookId = 21, Status = BookStatus.Unavailable }  // The Ladies of Grace Adieu
+                new UserBook { UserId = "user-005", BookId = 22, Status = BookStatus.Unavailable }  // The Ladies of Grace Adieu
             };
 
             context.UserBooks.AddRange(userBooks);
