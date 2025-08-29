@@ -3,11 +3,10 @@ using BookSharingApp.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace BookSharingApp.Endpoints
 {
-    public record JoinCommunityRequest(int CommunityId, string UserId);
-    public record LeaveCommunityRequest(int CommunityId, string UserId);
     public record CommunityWithMemberCountDto(int Id, string Name, bool Active, int MemberCount);
 
     public static class CommunityUserEndpoints
@@ -16,45 +15,43 @@ namespace BookSharingApp.Endpoints
         {
             var communityUsers = app.MapGroup("/community-users").WithTags("Community Users").RequireAuthorization();
 
-            communityUsers.MapPost("/join", async ([FromBody] JoinCommunityRequest request, ApplicationDbContext context) => 
+            communityUsers.MapPost("/join/{communityId:int}", async (int communityId, HttpContext httpContext, ApplicationDbContext context) => 
             {
+                var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+
                 var existingRelation = await context.CommunityUsers
-                    .FirstOrDefaultAsync(cu => cu.CommunityId == request.CommunityId && cu.UserId == request.UserId);
+                    .FirstOrDefaultAsync(cu => cu.CommunityId == communityId && cu.UserId == currentUserId);
                 
                 if (existingRelation is not null)
                 {
                     return Results.Conflict("User is already a member of this community");
                 }
 
-                var community = await context.Communities.FindAsync(request.CommunityId);
+                var community = await context.Communities.FindAsync(communityId);
                 if (community is null)
                 {
                     return Results.NotFound("Community not found");
                 }
 
-                var user = await context.Users.FindAsync(request.UserId);
-                if (user is null)
-                {
-                    return Results.NotFound("User not found");
-                }
-
                 var communityUser = new CommunityUser
                 {
-                    CommunityId = request.CommunityId,
-                    UserId = request.UserId
+                    CommunityId = communityId,
+                    UserId = currentUserId
                 };
 
                 context.CommunityUsers.Add(communityUser);
                 await context.SaveChangesAsync();
-                return Results.Created($"/community-users/community/{request.CommunityId}", communityUser);
+                return Results.Created($"/community-users/community/{communityId}", communityUser);
             })
             .WithName("JoinCommunity")
             .WithOpenApi();
 
-            communityUsers.MapDelete("/leave", async ([FromBody] LeaveCommunityRequest request, ApplicationDbContext context) => 
+            communityUsers.MapDelete("/leave/{communityId:int}", async (int communityId, HttpContext httpContext, ApplicationDbContext context) => 
             {
+                var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+
                 var communityUser = await context.CommunityUsers
-                    .FirstOrDefaultAsync(cu => cu.CommunityId == request.CommunityId && cu.UserId == request.UserId);
+                    .FirstOrDefaultAsync(cu => cu.CommunityId == communityId && cu.UserId == currentUserId);
                 
                 if (communityUser is null)
                 {
