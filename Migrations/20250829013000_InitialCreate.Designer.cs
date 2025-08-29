@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BookSharingApp.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250827013939_AddSearchBooksStoredProcedure")]
-    partial class AddSearchBooksStoredProcedure
+    [Migration("20250829013000_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
