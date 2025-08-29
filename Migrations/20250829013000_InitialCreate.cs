@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BookSharingApp.Migrations
 {
     /// <inheritdoc />
-    public partial class AddIdentityAndRefreshTokens : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -51,6 +51,35 @@ namespace BookSharingApp.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_AspNetUsers", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "book",
+                columns: table => new
+                {
+                    book_id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    title = table.Column<string>(type: "text", nullable: false),
+                    author = table.Column<string>(type: "text", nullable: false),
+                    isbn = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_book", x => x.book_id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "community",
+                columns: table => new
+                {
+                    community_id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    name = table.Column<string>(type: "text", nullable: false),
+                    active = table.Column<bool>(type: "boolean", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_community", x => x.community_id);
                 });
 
             migrationBuilder.CreateTable(
@@ -182,6 +211,57 @@ namespace BookSharingApp.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.CreateTable(
+                name: "user_book",
+                columns: table => new
+                {
+                    user_book_id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    user_id = table.Column<string>(type: "text", nullable: false),
+                    book_id = table.Column<int>(type: "integer", nullable: false),
+                    status = table.Column<int>(type: "integer", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_user_book", x => x.user_book_id);
+                    table.ForeignKey(
+                        name: "FK_user_book_AspNetUsers_user_id",
+                        column: x => x.user_id,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_user_book_book_book_id",
+                        column: x => x.book_id,
+                        principalTable: "book",
+                        principalColumn: "book_id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "community_user",
+                columns: table => new
+                {
+                    community_id = table.Column<int>(type: "integer", nullable: false),
+                    user_id = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_community_user", x => new { x.community_id, x.user_id });
+                    table.ForeignKey(
+                        name: "FK_community_user_AspNetUsers_user_id",
+                        column: x => x.user_id,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_community_user_community_community_id",
+                        column: x => x.community_id,
+                        principalTable: "community",
+                        principalColumn: "community_id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetRoleClaims_RoleId",
                 table: "AspNetRoleClaims",
@@ -220,14 +300,79 @@ namespace BookSharingApp.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_community_user_user_id",
+                table: "community_user",
+                column: "user_id");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_refresh_tokens_user_id",
                 table: "refresh_tokens",
                 column: "user_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_user_book_book_id",
+                table: "user_book",
+                column: "book_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_user_book_user_id",
+                table: "user_book",
+                column: "user_id");
+
+            migrationBuilder.Sql(@"
+                CREATE OR REPLACE FUNCTION search_accessible_books(
+                    p_user_id TEXT,
+                    p_search TEXT DEFAULT NULL
+                )
+                RETURNS TABLE(
+                    book_id INTEGER,
+                    title TEXT,
+                    author TEXT,
+                    isbn TEXT,
+                    user_book_id INTEGER,
+                    owner_user_id TEXT,
+                    status INTEGER,
+                    community_id INTEGER,
+                    community_name TEXT
+                ) AS $$
+                BEGIN
+                    RETURN QUERY
+                    SELECT 
+                        b.book_id,
+                        b.title,
+                        b.author,
+                        b.isbn,
+                        ub.user_book_id,
+                        ub.user_id as owner_user_id,
+                        ub.status,
+                        c.community_id,
+                        c.name as community_name
+                    FROM book b
+                    INNER JOIN user_book ub ON ub.book_id = b.book_id AND ub.status = 1 AND ub.user_id != p_user_id
+                    INNER JOIN community_user cu ON cu.user_id = ub.user_id
+                    INNER JOIN community c ON c.community_id = cu.community_id
+                    WHERE c.community_id IN (
+                        SELECT cu2.community_id 
+                        FROM community_user cu2
+                        WHERE cu2.user_id = p_user_id
+                    )
+                    AND (
+                        p_search IS NULL 
+                        OR p_search = '' 
+                        OR b.title ILIKE '%' || p_search || '%' 
+                        OR b.author ILIKE '%' || p_search || '%'
+                    )
+                    ORDER BY b.title, c.name;
+                END;
+                $$ LANGUAGE plpgsql;
+            ");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.Sql("DROP FUNCTION IF EXISTS search_accessible_books(TEXT, TEXT);");
+
             migrationBuilder.DropTable(
                 name: "AspNetRoleClaims");
 
@@ -244,13 +389,25 @@ namespace BookSharingApp.Migrations
                 name: "AspNetUserTokens");
 
             migrationBuilder.DropTable(
+                name: "community_user");
+
+            migrationBuilder.DropTable(
                 name: "refresh_tokens");
+
+            migrationBuilder.DropTable(
+                name: "user_book");
 
             migrationBuilder.DropTable(
                 name: "AspNetRoles");
 
             migrationBuilder.DropTable(
+                name: "community");
+
+            migrationBuilder.DropTable(
                 name: "AspNetUsers");
+
+            migrationBuilder.DropTable(
+                name: "book");
         }
     }
 }
