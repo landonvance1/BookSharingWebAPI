@@ -179,7 +179,6 @@ namespace BookSharingApp.Data
                 // Cornerstone community members
                 new CommunityUser { CommunityId = 2, UserId = "user-001" }, // Landon
                 new CommunityUser { CommunityId = 2, UserId = "user-004" }, // Bob
-                new CommunityUser { CommunityId = 2, UserId = "user-005" }, // Alice
 
                 // Tower Grove South community members
                 new CommunityUser { CommunityId = 3, UserId = "user-002" }, // John
@@ -188,6 +187,7 @@ namespace BookSharingApp.Data
 
                 // Inactive Group community members
                 new CommunityUser { CommunityId = 4, UserId = "user-001" }, // Landon
+                new CommunityUser { CommunityId = 4, UserId = "user-005" }, // Alice
 
                 // DnD Boys community members
                 new CommunityUser { CommunityId = 5, UserId = "user-001" }, // Landon
