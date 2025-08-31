@@ -32,3 +32,6 @@ packages/
 
 # Environment variables
 .env
+
+# Downloaded images
+wwwroot/images/
