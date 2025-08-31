@@ -60,6 +60,7 @@ builder.Services.AddAuthorization();
 
 // Register custom services
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddHttpClient<IBookLookupService, OpenLibraryService>();
 
 var app = builder.Build();
 
