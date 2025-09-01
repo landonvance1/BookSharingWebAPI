@@ -49,6 +49,36 @@ namespace BookSharingApp.Endpoints
             .WithName("UpdateUserBookStatus")
             .WithOpenApi();
 
+            userBooks.MapPost("/", async ([FromBody] int bookId, HttpContext httpContext, ApplicationDbContext context) =>
+            {
+                var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+                
+                // Check if book exists
+                var bookExists = await context.Books.AnyAsync(b => b.Id == bookId);
+                if (!bookExists)
+                    return Results.BadRequest("Book not found");
+                
+                // Check if user already has this book
+                var existingUserBook = await context.UserBooks
+                    .FirstOrDefaultAsync(ub => ub.UserId == currentUserId && ub.BookId == bookId);
+                if (existingUserBook != null)
+                    return Results.Conflict("User already has this book");
+                
+                var userBook = new UserBook
+                {
+                    UserId = currentUserId,
+                    BookId = bookId,
+                    Status = BookStatus.Available
+                };
+                
+                context.UserBooks.Add(userBook);
+                await context.SaveChangesAsync();
+                
+                return Results.Created($"/user-books/{userBook.Id}", userBook);
+            })
+            .WithName("AddUserBook")
+            .WithOpenApi();
+
             userBooks.MapDelete("/{userBookId:int}", async (int userBookId, HttpContext httpContext, ApplicationDbContext context) => 
             {
                 var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
