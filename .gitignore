@@ -33,5 +33,5 @@ packages/
 # Environment variables
 .env
 
-# Downloaded images
-wwwroot/images/
+# Downloaded images (exclude dynamically downloaded images but keep seed images)
+# wwwroot/images/ - commented out to allow seed images in source control
