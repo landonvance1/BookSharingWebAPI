@@ -107,39 +107,39 @@ namespace BookSharingApp.Data
 
             var books = new List<Book>
             {
-                new Book { Title = "The Great Gatsby", Author = "F. Scott Fitzgerald", ISBN = "978-0-7432-7356-5" }, //id 1
-                new Book { Title = "To Kill a Mockingbird", Author = "Harper Lee", ISBN = "978-0-06-112008-4" }, //id 2
-                new Book { Title = "1984", Author = "George Orwell", ISBN = "978-0-452-28423-4" }, //id 3
+                new Book { Title = "The Great Gatsby", Author = "F. Scott Fitzgerald", ISBN = "9780743273565" }, //id 1
+                new Book { Title = "To Kill a Mockingbird", Author = "Harper Lee", ISBN = "9780061120084" }, //id 2
+                new Book { Title = "1984", Author = "George Orwell", ISBN = "9780452284234" }, //id 3
                 
                 // Hilary Mantel
-                new Book { Title = "Wolf Hall", Author = "Hilary Mantel", ISBN = "978-0-8050-8068-6" }, //id 4
-                new Book { Title = "Bring Up the Bodies", Author = "Hilary Mantel", ISBN = "978-0-8050-9049-4" }, //id 5
-                new Book { Title = "The Mirror & the Light", Author = "Hilary Mantel", ISBN = "978-0-8050-9840-7" }, //id 6
-                new Book { Title = "A Place of Greater Safety", Author = "Hilary Mantel", ISBN = "978-0-14-012419-0" }, //id 7
+                new Book { Title = "Wolf Hall", Author = "Hilary Mantel", ISBN = "9780805080686" }, //id 4
+                new Book { Title = "Bring Up the Bodies", Author = "Hilary Mantel", ISBN = "9780805090494" }, //id 5
+                new Book { Title = "The Mirror & the Light", Author = "Hilary Mantel", ISBN = "9780805098407" }, //id 6
+                new Book { Title = "A Place of Greater Safety", Author = "Hilary Mantel", ISBN = "9780140124190" }, //id 7
                 
                 // Joe Abercrombie
-                new Book { Title = "The Blade Itself", Author = "Joe Abercrombie", ISBN = "978-0-575-07972-5" }, //id 8
-                new Book { Title = "Before They Are Hanged", Author = "Joe Abercrombie", ISBN = "978-0-575-07973-2" }, //id 9
-                new Book { Title = "Last Argument of Kings", Author = "Joe Abercrombie", ISBN = "978-0-575-07974-9" }, //id 10
-                new Book { Title = "Best Served Cold", Author = "Joe Abercrombie", ISBN = "978-0-575-08311-1" }, //id 11
+                new Book { Title = "The Blade Itself", Author = "Joe Abercrombie", ISBN = "9780575079725" }, //id 8
+                new Book { Title = "Before They Are Hanged", Author = "Joe Abercrombie", ISBN = "9780575079732" }, //id 9
+                new Book { Title = "Last Argument of Kings", Author = "Joe Abercrombie", ISBN = "9780575079749" }, //id 10
+                new Book { Title = "Best Served Cold", Author = "Joe Abercrombie", ISBN = "9780575083111" }, //id 11
                 
                 // Ursula K Le Guin
-                new Book { Title = "The Left Hand of Darkness", Author = "Ursula K Le Guin", ISBN = "978-0-441-47812-5" }, //id 12
-                new Book { Title = "A Wizard of Earthsea", Author = "Ursula K Le Guin", ISBN = "978-0-553-38304-1" }, //id 13
-                new Book { Title = "The Dispossessed", Author = "Ursula K Le Guin", ISBN = "978-0-06-051275-5" }, //id 14
-                new Book { Title = "The Lathe of Heaven", Author = "Ursula K Le Guin", ISBN = "978-0-06-125901-3" }, //id 15
+                new Book { Title = "The Left Hand of Darkness", Author = "Ursula K Le Guin", ISBN = "9780441478125" }, //id 12
+                new Book { Title = "A Wizard of Earthsea", Author = "Ursula K Le Guin", ISBN = "9780553383041" }, //id 13
+                new Book { Title = "The Dispossessed", Author = "Ursula K Le Guin", ISBN = "9780060512750" }, //id 14
+                new Book { Title = "The Lathe of Heaven", Author = "Ursula K Le Guin", ISBN = "9780061259013" }, //id 15
                 
                 // Robin Hobb
-                new Book { Title = "Assassin's Apprentice", Author = "Robin Hobb", ISBN = "978-0-553-57339-4" }, //id 16
-                new Book { Title = "Royal Assassin", Author = "Robin Hobb", ISBN = "978-0-553-56440-8" }, //id 17
-                new Book { Title = "Assassin's Quest", Author = "Robin Hobb", ISBN = "978-0-553-56441-5" }, //id 18
-                new Book { Title = "Ship of Magic", Author = "Robin Hobb", ISBN = "978-0-553-56619-8" }, //id 19
+                new Book { Title = "Assassin's Apprentice", Author = "Robin Hobb", ISBN = "9780553573394" }, //id 16
+                new Book { Title = "Royal Assassin", Author = "Robin Hobb", ISBN = "9780553564408" }, //id 17
+                new Book { Title = "Assassin's Quest", Author = "Robin Hobb", ISBN = "9780553564415" }, //id 18
+                new Book { Title = "Ship of Magic", Author = "Robin Hobb", ISBN = "9780553566198" }, //id 19
                 
                 // Susanna Clarke
-                new Book { Title = "Jonathan Strange & Mr Norrell", Author = "Susanna Clarke", ISBN = "978-0-7475-8173-4" }, //id 20
-                new Book { Title = "Piranesi", Author = "Susanna Clarke", ISBN = "978-1-63557-563-3" }, //id 21
-                new Book { Title = "The Ladies of Grace Adieu", Author = "Susanna Clarke", ISBN = "978-0-7475-8457-5" }, //id 22
-                new Book { Title = "The Wood at Midwinter", Author = "Susanna Clarke", ISBN = "978-1-63557-982-2" } //id 23
+                new Book { Title = "Jonathan Strange & Mr Norrell", Author = "Susanna Clarke", ISBN = "9780747581734" }, //id 20
+                new Book { Title = "Piranesi", Author = "Susanna Clarke", ISBN = "9781635575633" }, //id 21
+                new Book { Title = "The Ladies of Grace Adieu", Author = "Susanna Clarke", ISBN = "9780747584575" }, //id 22
+                new Book { Title = "The Wood at Midwinter", Author = "Susanna Clarke", ISBN = "9781635579822" } //id 23
             };
 
             context.Books.AddRange(books);
