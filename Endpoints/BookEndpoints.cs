@@ -41,21 +41,6 @@ namespace BookSharingApp.Endpoints
             .WithName("AddBook")
             .WithOpenApi();
 
-            books.MapGet("/search", async (string? search, HttpContext httpContext, ApplicationDbContext context) => 
-            {
-                var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
-                
-                var results = await context.Database
-                    .SqlQueryRaw<SearchBookResult>(
-                        "SELECT * FROM search_accessible_books({0}, {1})", 
-                        currentUserId, 
-                        search ?? string.Empty)
-                    .ToListAsync();
-                
-                return Results.Ok(results);
-            })
-            .WithName("SearchBooks")
-            .WithOpenApi();
 
         }
 
