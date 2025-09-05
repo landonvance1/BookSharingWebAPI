@@ -1,4 +1,4 @@
-namespace BookSharingApp.Enums
+namespace BookSharingApp.Common
 {
     public enum BookStatus
     {

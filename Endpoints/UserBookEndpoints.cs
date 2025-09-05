@@ -1,6 +1,6 @@
 using BookSharingApp.Data;
 using BookSharingApp.Models;
-using BookSharingApp.Enums;
+using BookSharingApp.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -112,7 +112,7 @@ namespace BookSharingApp.Endpoints
                 
                 return Results.Ok(results);
             })
-            .WithName("SearchBooks")
+            .WithName("SearchUserBooks")
             .WithOpenApi();
         }
     }

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using BookSharingApp.Common;
 
 namespace BookSharingApp.Services
 {
@@ -52,6 +53,60 @@ namespace BookSharingApp.Services
             {
                 _logger.LogError(ex, "Error fetching book data from OpenLibrary for ISBN {ISBN}", isbn);
                 return null;
+            }
+        }
+
+        public async Task<List<BookLookupResult>> SearchBooksAsync(string? isbn = null, string? title = null, string? author = null)
+        {
+            try
+            {
+                var queryParams = new List<string>();
+                
+                if (!string.IsNullOrWhiteSpace(isbn))
+                    queryParams.Add($"isbn={Uri.EscapeDataString(CleanIsbn(isbn))}");
+                
+                if (!string.IsNullOrWhiteSpace(title))
+                    queryParams.Add($"title={Uri.EscapeDataString(title)}");
+                
+                if (!string.IsNullOrWhiteSpace(author))
+                    queryParams.Add($"author={Uri.EscapeDataString(author)}");
+
+                if (!queryParams.Any())
+                    return new List<BookLookupResult>();
+
+                var queryString = string.Join("&", queryParams);
+                var response = await _httpClient.GetAsync($"https://openlibrary.org/search.json?{queryString}&limit={Constants.MaxExternalSearchResults + 1}");
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("OpenLibrary API returned {StatusCode} for search query {Query}", response.StatusCode, queryString);
+                    return new List<BookLookupResult>();
+                }
+
+                var jsonContent = await response.Content.ReadAsStringAsync();
+                var searchResult = JsonSerializer.Deserialize<OpenLibrarySearchResponse>(jsonContent, new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+                });
+
+                if (searchResult?.Docs?.Any() != true)
+                {
+                    _logger.LogInformation("No books found for search query {Query}", queryString);
+                    return new List<BookLookupResult>();
+                }
+
+                return searchResult.Docs.Select(book => new BookLookupResult
+                {
+                    Title = book.Title ?? "Unknown Title",
+                    Author = book.AuthorName?.FirstOrDefault() ?? "Unknown Author",
+                    Isbn = book.Isbn?.FirstOrDefault() ?? string.Empty,
+                    ThumbnailUrl = book.CoverId != null ? $"https://covers.openlibrary.org/b/id/{book.CoverId}-M.jpg" : null
+                }).ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error searching books from OpenLibrary with ISBN: {ISBN}, Title: {Title}, Author: {Author}", isbn, title, author);
+                return new List<BookLookupResult>();
             }
         }
 

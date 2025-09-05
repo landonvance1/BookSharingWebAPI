@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using BookSharingApp.Enums;
+using BookSharingApp.Common;
 
 namespace BookSharingApp.Models
 {

@@ -3,6 +3,7 @@ namespace BookSharingApp.Services
     public interface IBookLookupService
     {
         Task<BookLookupResult?> GetBookByIsbnAsync(string isbn);
+        Task<List<BookLookupResult>> SearchBooksAsync(string? isbn = null, string? title = null, string? author = null);
     }
 
     public class BookLookupResult
