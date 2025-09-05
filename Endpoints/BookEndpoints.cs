@@ -28,6 +28,13 @@ namespace BookSharingApp.Endpoints
 
             books.MapPost("/", async (Book book, ApplicationDbContext context) => 
             {
+                // Check if ISBN already exists
+                var existingBook = await context.Books.FirstOrDefaultAsync(b => b.ISBN == book.ISBN);
+                if (existingBook != null)
+                {
+                    return Results.Conflict($"A book with ISBN '{book.ISBN}' already exists.");
+                }
+
                 book.Id = 0; // Ensure EF generates new ID
                 context.Books.Add(book);
                 await context.SaveChangesAsync();
@@ -79,8 +86,17 @@ namespace BookSharingApp.Endpoints
                     await ImageHelper.DownloadThumbnailAsync(bookData.ThumbnailUrl, isbn, environment);
                 }
 
-                context.Books.Add(newBook);
-                await context.SaveChangesAsync();
+                try
+                {
+                    context.Books.Add(newBook);
+                    await context.SaveChangesAsync();
+                }
+                catch (DbUpdateException)
+                {
+                    // If we get here, it means the book was created between our check and our insert
+                    var duplicateBook = await context.Books.FirstOrDefaultAsync(b => b.ISBN == isbn);
+                    return duplicateBook != null ? Results.Ok(duplicateBook) : Results.Conflict($"A book with ISBN '{isbn}' already exists.");
+                }
 
                 return Results.Ok(newBook);
             })

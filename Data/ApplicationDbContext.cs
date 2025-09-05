@@ -35,6 +35,7 @@ namespace BookSharingApp.Data
                 entity.Property(e => e.Title).HasColumnName("title").IsRequired();
                 entity.Property(e => e.Author).HasColumnName("author").IsRequired();
                 entity.Property(e => e.ISBN).HasColumnName("isbn").IsRequired();
+                entity.HasIndex(e => e.ISBN).IsUnique();
                 entity.Ignore(e => e.ThumbnailUrl);
             });
 
