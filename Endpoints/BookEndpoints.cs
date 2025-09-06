@@ -3,6 +3,7 @@ using BookSharingApp.Models;
 using BookSharingApp.Services;
 using BookSharingApp.Common;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace BookSharingApp.Endpoints
 {
@@ -25,7 +26,7 @@ namespace BookSharingApp.Endpoints
             .WithName("GetBookById")
             .WithOpenApi();
 
-            books.MapPost("/", async (Book book, ApplicationDbContext context) => 
+            books.MapPost("/", async (Book book, bool addToUser, HttpContext httpContext, ApplicationDbContext context) => 
             {
                 // Check if ISBN already exists
                 var existingBook = await context.Books.FirstOrDefaultAsync(b => b.ISBN == book.ISBN);
@@ -37,6 +38,23 @@ namespace BookSharingApp.Endpoints
                 book.Id = 0; // Ensure EF generates new ID
                 context.Books.Add(book);
                 await context.SaveChangesAsync();
+                
+                // If addToUser is true, create a UserBook record
+                if (addToUser)
+                {
+                    var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+                    
+                    var userBook = new UserBook
+                    {
+                        UserId = currentUserId,
+                        BookId = book.Id,
+                        Status = BookStatus.Available
+                    };
+                    
+                    context.UserBooks.Add(userBook);
+                    await context.SaveChangesAsync();
+                }
+                
                 return Results.Created($"/books/{book.Id}", book);
             })
             .WithName("AddBook")
