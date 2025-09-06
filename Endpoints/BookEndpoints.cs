@@ -4,6 +4,7 @@ using BookSharingApp.Services;
 using BookSharingApp.Common;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace BookSharingApp.Endpoints
 {
@@ -28,11 +29,11 @@ namespace BookSharingApp.Endpoints
 
             books.MapPost("/", async (Book book, bool addToUser, HttpContext httpContext, ApplicationDbContext context) => 
             {
-                // Check if ISBN already exists
-                var existingBook = await context.Books.FirstOrDefaultAsync(b => b.ISBN == book.ISBN);
+                // Check if title + author already exists
+                var existingBook = await context.Books.FirstOrDefaultAsync(b => b.Title == book.Title && b.Author == book.Author);
                 if (existingBook != null)
                 {
-                    return Results.Conflict($"A book with ISBN '{book.ISBN}' already exists.");
+                    return Results.Conflict($"A book with title '{book.Title}' by '{book.Author}' already exists.");
                 }
 
                 book.Id = 0; // Ensure EF generates new ID
@@ -55,40 +56,59 @@ namespace BookSharingApp.Endpoints
                     await context.SaveChangesAsync();
                 }
                 
+                // Download external thumbnail if provided
+                if (!string.IsNullOrWhiteSpace(book.ExternalThumbnailUrl))
+                {
+                    try
+                    {
+                        using var httpClient = new HttpClient();
+                        var imageBytes = await httpClient.GetByteArrayAsync(book.ExternalThumbnailUrl);
+                        var imagesPath = Path.Combine("wwwroot", "images");
+                        Directory.CreateDirectory(imagesPath);
+                        var imagePath = Path.Combine(imagesPath, $"{book.Id}.jpg");
+                        await File.WriteAllBytesAsync(imagePath, imageBytes);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Failed to download thumbnail for book {book.Id}: {ex.Message}");
+                        // Continue without failing the book creation
+                    }
+                }
+                
                 return Results.Created($"/books/{book.Id}", book);
             })
             .WithName("AddBook")
             .WithOpenApi();
 
-            books.MapGet("/search", async (string? isbn, string? title, string? author, bool includeExternal, ApplicationDbContext context, IBookLookupService bookLookupService) => 
+            books.MapGet("/search", async (string? title, string? author, bool includeExternal, ApplicationDbContext context, IBookLookupService bookLookupService) => 
             {
                 var results = new List<Book>();
                 
-                // Search local database first
-                var query = context.Books.AsQueryable();
-                
-                if (!string.IsNullOrWhiteSpace(isbn))
-                    query = query.Where(b => b.ISBN.Contains(isbn));
-                
-                if (!string.IsNullOrWhiteSpace(title))
-                    query = query.Where(b => b.Title.Contains(title));
-                
-                if (!string.IsNullOrWhiteSpace(author))
-                    query = query.Where(b => b.Author.Contains(author));
-                
-                var localResults = await query.ToListAsync();
-                results.AddRange(localResults);
+                // Search local database only if title or author is provided
+                if (!string.IsNullOrWhiteSpace(title) || !string.IsNullOrWhiteSpace(author))
+                {
+                    var query = context.Books.AsQueryable();
+                    
+                    if (!string.IsNullOrWhiteSpace(title))
+                        query = query.Where(b => b.Title.Contains(title));
+                    
+                    if (!string.IsNullOrWhiteSpace(author))
+                        query = query.Where(b => b.Author.Contains(author));
+                    
+                    var localResults = await query.ToListAsync();
+                    results.AddRange(localResults);
+                }
                 
                 // If includeExternal is true, search OpenLibrary
                 if (includeExternal)
                 {
-                    var externalResults = await bookLookupService.SearchBooksAsync(isbn, title, author);
+                    var externalResults = await bookLookupService.SearchBooksAsync(null, title, author);
                     
                     // Convert external results to Book objects and merge
                     foreach (var externalBook in externalResults)
                     {
                         // Skip if we already have this book locally (by title and author)
-                        bool isDuplicate = localResults.Any(b => 
+                        bool isDuplicate = results.Any(b => 
                             string.Equals(NormalizeString(b.Title), NormalizeString(externalBook.Title), StringComparison.OrdinalIgnoreCase) &&
                             string.Equals(NormalizeString(b.Author), NormalizeString(externalBook.Author), StringComparison.OrdinalIgnoreCase));
                         
@@ -101,7 +121,6 @@ namespace BookSharingApp.Endpoints
                             Id = -results.Count - 1,
                             Title = externalBook.Title,
                             Author = externalBook.Author,
-                            ISBN = externalBook.Isbn,
                             ExternalThumbnailUrl = externalBook.ThumbnailUrl
                         });
                     }
@@ -123,6 +142,49 @@ namespace BookSharingApp.Endpoints
                 });
             })
             .WithName("SearchBooks")
+            .WithOpenApi();
+
+            books.MapGet("/isbn/{isbn}", async (string isbn, ApplicationDbContext context, IBookLookupService bookLookupService) => 
+            {
+                // Search OpenLibrary by ISBN only
+                var externalResults = await bookLookupService.SearchBooksAsync(isbn, null, null);
+                
+                if (externalResults.Count == 0)
+                {
+                    return Results.NotFound($"No book found with ISBN: {isbn}");
+                }
+                
+                if (externalResults.Count > 1)
+                {
+                    throw new InvalidOperationException($"Multiple books found for ISBN {isbn}. ISBN should be unique.");
+                }
+                
+                var externalBook = externalResults[0];
+                
+                // Check if this book already exists locally by title + author
+                var existingBook = await context.Books.FirstOrDefaultAsync(b => 
+                    b.Title == externalBook.Title && b.Author == externalBook.Author);
+                
+                if (existingBook != null)
+                {
+                    // Return the existing local book
+                    return Results.Ok(existingBook);
+                }
+                else
+                {
+                    // Return external book with negative ID
+                    var book = new Book
+                    {
+                        Id = -1,
+                        Title = externalBook.Title,
+                        Author = externalBook.Author,
+                        ExternalThumbnailUrl = externalBook.ThumbnailUrl
+                    };
+                    
+                    return Results.Ok(book);
+                }
+            })
+            .WithName("SearchByIsbn")
             .WithOpenApi();
 
         }

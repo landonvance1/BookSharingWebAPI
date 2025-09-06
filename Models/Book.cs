@@ -19,14 +19,10 @@ namespace BookSharingApp.Models
         [Column("author")]
         public string Author { get; set; } = string.Empty;
         
-        [Required]
-        [Column("isbn")]
-        public string ISBN { get; set; } = string.Empty;
-        
         [NotMapped]
         public string? ExternalThumbnailUrl { get; set; }
         
         [NotMapped]
-        public string ThumbnailUrl => ExternalThumbnailUrl ?? $"/images/{ISBN}.jpg";
+        public string ThumbnailUrl => ExternalThumbnailUrl ?? $"/images/{Id}.jpg";
     }
 }

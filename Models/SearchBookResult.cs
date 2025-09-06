@@ -13,9 +13,6 @@ namespace BookSharingApp.Models
         [Column("author")]
         public string Author { get; set; } = string.Empty;
         
-        [Column("isbn")]
-        public string ISBN { get; set; } = string.Empty;
-        
         [Column("user_book_id")]
         public int UserBookId { get; set; }
         
