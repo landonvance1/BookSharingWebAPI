@@ -90,7 +90,6 @@ app.UseStaticFiles();
 // Map endpoints
 app.MapAuthEndpoints();
 app.MapBookEndpoints();
-app.MapBookImportEndpoints();
 app.MapCommunityEndpoints();
 app.MapCommunityUserEndpoints();
 app.MapUserBookEndpoints();

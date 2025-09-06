@@ -34,9 +34,9 @@ namespace BookSharingApp.Data
                 entity.Property(e => e.Id).HasColumnName("book_id").ValueGeneratedOnAdd();
                 entity.Property(e => e.Title).HasColumnName("title").IsRequired();
                 entity.Property(e => e.Author).HasColumnName("author").IsRequired();
-                entity.Property(e => e.ISBN).HasColumnName("isbn").IsRequired();
-                entity.HasIndex(e => e.ISBN).IsUnique();
+                entity.HasIndex(e => new { e.Title, e.Author }).IsUnique();
                 entity.Ignore(e => e.ThumbnailUrl);
+                entity.Ignore(e => e.ExternalThumbnailUrl);
             });
 
             modelBuilder.Entity<RefreshToken>(entity =>
