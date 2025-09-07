@@ -60,7 +60,10 @@ builder.Services.AddAuthorization();
 
 // Register custom services
 builder.Services.AddScoped<ITokenService, TokenService>();
-builder.Services.AddHttpClient<IBookLookupService, OpenLibraryService>();
+builder.Services.AddHttpClient<IBookLookupService, OpenLibraryService>(client =>
+{
+    client.DefaultRequestHeaders.Add("User-Agent", "Community Bookshare App (landonpvance@gmail.com)");
+});
 
 var app = builder.Build();
 
