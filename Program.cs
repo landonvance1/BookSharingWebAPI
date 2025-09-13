@@ -96,5 +96,6 @@ app.MapBookEndpoints();
 app.MapCommunityEndpoints();
 app.MapCommunityUserEndpoints();
 app.MapUserBookEndpoints();
+app.MapShareEndpoints();
 
 app.Run();
