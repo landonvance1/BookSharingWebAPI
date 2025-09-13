@@ -32,6 +32,21 @@ namespace BookSharingApp.Endpoints
                 if (userBook.Status != UserBookStatus.Available)
                     return Results.BadRequest("Book is not available for sharing");
                 
+                // Check if borrower and lender share at least one community
+                var borrowerCommunities = await context.CommunityUsers
+                    .Where(cu => cu.UserId == currentUserId)
+                    .Select(cu => cu.CommunityId)
+                    .ToListAsync();
+                
+                var lenderCommunities = await context.CommunityUsers
+                    .Where(cu => cu.UserId == userBook.UserId)
+                    .Select(cu => cu.CommunityId)
+                    .ToListAsync();
+                
+                var sharedCommunities = borrowerCommunities.Intersect(lenderCommunities).Any();
+                if (!sharedCommunities)
+                    return Results.BadRequest("You must share a community with the book owner to request this book");
+                
                 // Check if there's already an active share for this userbook by this borrower
                 var existingShare = await context.Shares
                     .FirstOrDefaultAsync(s => s.UserBookId == userbookid && 
