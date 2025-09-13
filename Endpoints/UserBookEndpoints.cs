@@ -28,7 +28,7 @@ namespace BookSharingApp.Endpoints
 
             userBooks.MapPut("/{userBookId:int}/status", async (int userBookId, [FromBody] int status, HttpContext httpContext, ApplicationDbContext context) => 
             {
-                if (!Enum.IsDefined(typeof(BookStatus), status))
+                if (!Enum.IsDefined(typeof(UserBookStatus), status))
                     return Results.BadRequest("Status must be Available (1), OnLoan (2), or Unavailable (3)");
                 
                 var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
@@ -41,7 +41,7 @@ namespace BookSharingApp.Endpoints
                 if (userBook.UserId != currentUserId)
                     return Results.Forbid();
                 
-                userBook.Status = (BookStatus)status;
+                userBook.Status = (UserBookStatus)status;
                 await context.SaveChangesAsync();
                 
                 return Results.Ok(userBook);
@@ -68,7 +68,7 @@ namespace BookSharingApp.Endpoints
                 {
                     UserId = currentUserId,
                     BookId = bookId,
-                    Status = BookStatus.Available
+                    Status = UserBookStatus.Available
                 };
                 
                 context.UserBooks.Add(userBook);

@@ -22,7 +22,7 @@ namespace BookSharingApp.Models
         
         [Required]
         [Column("status")]
-        public BookStatus Status { get; set; }
+        public UserBookStatus Status { get; set; }
         
         // Navigation properties
         public User User { get; set; } = null!;

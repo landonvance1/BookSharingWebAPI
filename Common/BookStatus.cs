@@ -1,6 +1,6 @@
 namespace BookSharingApp.Common
 {
-    public enum BookStatus
+    public enum UserBookStatus
     {
         Available = 1,
         OnLoan = 2,

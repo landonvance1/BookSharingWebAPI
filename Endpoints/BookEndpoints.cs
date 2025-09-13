@@ -49,7 +49,7 @@ namespace BookSharingApp.Endpoints
                     {
                         UserId = currentUserId,
                         BookId = book.Id,
-                        Status = BookStatus.Available
+                        Status = UserBookStatus.Available
                     };
                     
                     context.UserBooks.Add(userBook);
