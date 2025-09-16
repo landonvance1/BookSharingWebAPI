@@ -72,35 +72,35 @@ namespace BookSharingApp.Endpoints
             .WithOpenApi();
 
             // GET /shares/borrower - Get shares where current user is the borrower
-            shares.MapGet("/borrower", async (HttpContext httpContext, ApplicationDbContext context) => 
+            shares.MapGet("/borrower", async (HttpContext httpContext, ApplicationDbContext context) =>
             {
                 var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
-                
-                var borrowerShares = await context.Shares
+
+                List<Share> borrowerShares = await context.Shares
                     .Include(s => s.UserBook)
                         .ThenInclude(ub => ub.Book)
                     .Include(s => s.UserBook)
                         .ThenInclude(ub => ub.User)
                     .Where(s => s.Borrower == currentUserId && s.Status <= ShareStatus.Returned)
                     .ToListAsync();
-                
+
                 return Results.Ok(borrowerShares);
             })
             .WithName("GetBorrowerShares")
             .WithOpenApi();
 
             // GET /shares/lender - Get shares where current user is the lender
-            shares.MapGet("/lender", async (HttpContext httpContext, ApplicationDbContext context) => 
+            shares.MapGet("/lender", async (HttpContext httpContext, ApplicationDbContext context) =>
             {
                 var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
-                
-                var lenderShares = await context.Shares
+
+                List<Share> lenderShares = await context.Shares
                     .Include(s => s.UserBook)
                         .ThenInclude(ub => ub.Book)
                     .Include(s => s.BorrowerUser)
                     .Where(s => s.UserBook.UserId == currentUserId && s.Status <= ShareStatus.Returned)
                     .ToListAsync();
-                
+
                 return Results.Ok(lenderShares);
             })
             .WithName("GetLenderShares")
