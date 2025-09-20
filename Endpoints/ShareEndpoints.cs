@@ -1,6 +1,7 @@
 using BookSharingApp.Data;
 using BookSharingApp.Models;
 using BookSharingApp.Common;
+using BookSharingApp.Validators;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -105,6 +106,38 @@ namespace BookSharingApp.Endpoints
             })
             .WithName("GetLenderShares")
             .WithOpenApi();
+
+            // PUT /shares/{id}/status - Update share status
+            shares.MapPut("/{id}/status", async (int id, [FromBody] ShareStatusUpdateRequest request,
+                HttpContext httpContext, ApplicationDbContext context) =>
+            {
+                var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+
+                // Find the share with required includes
+                var share = await context.Shares
+                    .Include(s => s.UserBook)
+                    .FirstOrDefaultAsync(s => s.Id == id);
+
+                if (share is null)
+                    return Results.NotFound("Share not found");
+
+                // Validate the status transition
+                var validator = new ShareStatusValidator();
+                var validationResult = validator.ValidateStatusTransition(share, request.Status, currentUserId);
+
+                if (!validationResult.IsValid)
+                    return Results.BadRequest(validationResult.ErrorMessage);
+
+                // Update the status
+                share.Status = request.Status;
+                await context.SaveChangesAsync();
+
+                return Results.Ok(share);
+            })
+            .WithName("UpdateShareStatus")
+            .WithOpenApi();
         }
     }
+
+    public record ShareStatusUpdateRequest(ShareStatus Status);
 }
