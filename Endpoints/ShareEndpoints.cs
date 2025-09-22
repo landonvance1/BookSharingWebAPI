@@ -116,6 +116,10 @@ namespace BookSharingApp.Endpoints
                 // Find the share with required includes
                 var share = await context.Shares
                     .Include(s => s.UserBook)
+                        .ThenInclude(ub => ub.Book)
+                    .Include(s => s.UserBook)
+                        .ThenInclude(ub => ub.User)
+                    .Include(s => s.BorrowerUser)
                     .FirstOrDefaultAsync(s => s.Id == id);
 
                 if (share is null)
