@@ -25,6 +25,9 @@ namespace BookSharingApp.Data
 
             // Seed user books
             await SeedUserBooksAsync(context);
+
+            // Seed shares
+            await SeedSharesAsync(context);
         }
 
         private static async Task SeedUsersAsync(UserManager<User> userManager)
@@ -238,6 +241,26 @@ namespace BookSharingApp.Data
             };
 
             context.UserBooks.AddRange(userBooks);
+            await context.SaveChangesAsync();
+        }
+
+        private static async Task SeedSharesAsync(ApplicationDbContext context)
+        {
+            if (await context.Shares.AnyAsync())
+                return; // Database has been seeded
+
+            var shares = new List<Share>
+            {
+                new Share
+                {
+                    UserBookId = 7,
+                    Borrower = "user-001",
+                    ReturnDate = null,
+                    Status = ShareStatus.Returned
+                }
+            };
+
+            context.Shares.AddRange(shares);
             await context.SaveChangesAsync();
         }
     }
