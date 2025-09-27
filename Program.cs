@@ -2,6 +2,9 @@ using BookSharingApp.Data;
 using BookSharingApp.Models;
 using BookSharingApp.Endpoints;
 using BookSharingApp.Services;
+using BookSharingApp.Hubs;
+using BookSharingApp.Middleware;
+using BookSharingApp.Common;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -58,8 +61,38 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
+// Configure SignalR with JWT authentication
+builder.Services.AddSignalR();
+
+// Configure JWT for SignalR
+builder.Services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
+{
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/chathub"))
+            {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
+    };
+});
+
 // Register custom services
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddSingleton<IRateLimitService, RateLimitService>();
+builder.Services.AddSingleton<IRateLimiter>(provider =>
+{
+    var rateLimiter = new InMemoryRateLimiter();
+    rateLimiter.ConfigureLimit(RateLimitNames.ChatSend, 30, TimeSpan.FromMinutes(2)); // 30 messages per 2 minutes
+    return rateLimiter;
+});
+
 builder.Services.AddHttpClient<IBookLookupService, OpenLibraryService>(client =>
 {
     client.DefaultRequestHeaders.Add("User-Agent", "Community Bookshare App (landonpvance@gmail.com)");
@@ -88,6 +121,9 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Add rate limiting middleware
+app.UseMiddleware<RateLimitMiddleware>();
+
 app.UseStaticFiles();
 
 // Map endpoints
@@ -97,5 +133,9 @@ app.MapCommunityEndpoints();
 app.MapCommunityUserEndpoints();
 app.MapUserBookEndpoints();
 app.MapShareEndpoints();
+app.MapChatEndpoints();
+
+// Map SignalR hub
+app.MapHub<ChatHub>("/chathub");
 
 app.Run();

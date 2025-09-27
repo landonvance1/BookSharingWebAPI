@@ -17,6 +17,9 @@ namespace BookSharingApp.Data
         public DbSet<CommunityUser> CommunityUsers { get; set; }
         public DbSet<UserBook> UserBooks { get; set; }
         public DbSet<Share> Shares { get; set; }
+        public DbSet<ChatThread> ChatThreads { get; set; }
+        public DbSet<ChatMessage> ChatMessages { get; set; }
+        public DbSet<ShareChatThread> ShareChatThreads { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -98,6 +101,46 @@ namespace BookSharingApp.Data
                 entity.Property(e => e.Status).HasColumnName("status").IsRequired();
                 entity.HasOne(e => e.UserBook).WithMany().HasForeignKey(e => e.UserBookId);
                 entity.HasOne(e => e.BorrowerUser).WithMany().HasForeignKey(e => e.Borrower);
+            });
+
+            modelBuilder.Entity<ChatThread>(entity =>
+            {
+                entity.ToTable("chat_thread");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("thread_id").ValueGeneratedOnAdd();
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
+                entity.Property(e => e.LastActivity).HasColumnName("last_activity");
+            });
+
+            modelBuilder.Entity<ChatMessage>(entity =>
+            {
+                entity.ToTable("chat_message");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("message_id").ValueGeneratedOnAdd();
+                entity.Property(e => e.ThreadId).HasColumnName("thread_id").IsRequired();
+                entity.Property(e => e.SenderId).HasColumnName("sender_id").IsRequired();
+                entity.Property(e => e.Content).HasColumnName("content").HasMaxLength(2000).IsRequired();
+                entity.Property(e => e.SentAt).HasColumnName("sent_at").IsRequired();
+                entity.Property(e => e.IsSystemMessage).HasColumnName("is_system_message").IsRequired();
+                entity.HasOne(e => e.Thread).WithMany(t => t.Messages).HasForeignKey(e => e.ThreadId);
+                entity.HasOne(e => e.Sender).WithMany().HasForeignKey(e => e.SenderId);
+
+                // Indexes for efficient querying
+                entity.HasIndex(e => new { e.ThreadId, e.SentAt }).HasDatabaseName("IX_ChatMessage_Thread_SentAt");
+                entity.HasIndex(e => e.SenderId).HasDatabaseName("IX_ChatMessage_SenderId");
+            });
+
+            modelBuilder.Entity<ShareChatThread>(entity =>
+            {
+                entity.ToTable("share_chat_thread");
+                entity.HasKey(e => e.ThreadId);
+                entity.Property(e => e.ThreadId).HasColumnName("thread_id").IsRequired();
+                entity.Property(e => e.ShareId).HasColumnName("share_id").IsRequired();
+                entity.HasOne(e => e.Thread).WithOne(t => t.ShareChatThread).HasForeignKey<ShareChatThread>(e => e.ThreadId);
+                entity.HasOne(e => e.Share).WithMany().HasForeignKey(e => e.ShareId);
+
+                // Ensure one thread per share
+                entity.HasIndex(e => e.ShareId).IsUnique().HasDatabaseName("IX_ShareChatThread_ShareId_Unique");
             });
         }
     }
