@@ -2,6 +2,7 @@ using BookSharingApp.Data;
 using BookSharingApp.Models;
 using BookSharingApp.Common;
 using BookSharingApp.Validators;
+using BookSharingApp.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,7 +17,7 @@ namespace BookSharingApp.Endpoints
             var shares = app.MapGroup("/shares").WithTags("Shares").RequireAuthorization();
 
             // POST /shares?userbookid={id} - Create a new share request
-            shares.MapPost("/", async (int userbookid, HttpContext httpContext, ApplicationDbContext context) =>
+            shares.MapPost("/", async (int userbookid, HttpContext httpContext, ApplicationDbContext context, IChatService chatService) =>
             {
                 var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
                 
@@ -66,7 +67,18 @@ namespace BookSharingApp.Endpoints
                 
                 context.Shares.Add(share);
                 await context.SaveChangesAsync();
-                
+
+                // Create chat thread for the share
+                try
+                {
+                    await chatService.CreateShareChatAsync(share.Id);
+                }
+                catch (Exception)
+                {
+                    // Log error but don't fail the share creation
+                    // The chat can be created later if needed
+                }
+
                 return Results.Created($"/shares/{share.Id}", share);
             })
             .WithName("CreateShare")
@@ -109,7 +121,7 @@ namespace BookSharingApp.Endpoints
 
             // PUT /shares/{id}/status - Update share status
             shares.MapPut("/{id}/status", async (int id, [FromBody] ShareStatusUpdateRequest request,
-                HttpContext httpContext, ApplicationDbContext context) =>
+                HttpContext httpContext, ApplicationDbContext context, IChatService chatService) =>
             {
                 var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
 
@@ -136,10 +148,37 @@ namespace BookSharingApp.Endpoints
                 share.Status = request.Status;
                 await context.SaveChangesAsync();
 
+                // Send system message for status change
+                try
+                {
+                    var statusMessage = GetStatusChangeMessage(request.Status);
+                    if (!string.IsNullOrEmpty(statusMessage))
+                    {
+                        await chatService.SendSystemMessageAsync(share.Id, statusMessage);
+                    }
+                }
+                catch (Exception)
+                {
+                    // Log error but don't fail the status update
+                }
+
                 return Results.Ok(share);
             })
             .WithName("UpdateShareStatus")
             .WithOpenApi();
+        }
+
+        private static string GetStatusChangeMessage(ShareStatus newStatus)
+        {
+            return newStatus switch
+            {
+                ShareStatus.Ready => "📚 Book is ready for pickup! You can coordinate the details here.",
+                ShareStatus.PickedUp => "✅ Book has been picked up. Enjoy your reading!",
+                ShareStatus.Returned => "📖 Book has been returned. Please confirm if everything looks good.",
+                ShareStatus.HomeSafe => "🏠 Share completed successfully! Thank you for using the book sharing community.",
+                ShareStatus.Disputed => "⚠️ A dispute has been raised. Please discuss the issue here.",
+                _ => string.Empty
+            };
         }
     }
 
