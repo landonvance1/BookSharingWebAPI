@@ -33,7 +33,7 @@ namespace BookSharingApp.Data
         private static async Task SeedUsersAsync(UserManager<User> userManager)
         {
             // Check if users already exist
-            if (userManager.Users.Any())
+            if (userManager.Users.Count() > 1)
                 return;
 
             var seedUsers = new List<(User user, string password)>
@@ -256,7 +256,7 @@ namespace BookSharingApp.Data
                     UserBookId = 7,
                     Borrower = "user-001",
                     ReturnDate = null,
-                    Status = ShareStatus.Returned
+                    Status = ShareStatus.Ready
                 }
             };
 
