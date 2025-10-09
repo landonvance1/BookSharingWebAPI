@@ -166,6 +166,37 @@ namespace BookSharingApp.Endpoints
             })
             .WithName("UpdateShareStatus")
             .WithOpenApi();
+
+            // PUT /shares/{id}/return-date - Set return date (lender only)
+            shares.MapPut("/{id}/return-date", async (int id, [FromBody] SetReturnDateRequest request,
+                HttpContext httpContext, ApplicationDbContext context) =>
+            {
+                var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+
+                // Find the share with required includes
+                var share = await context.Shares
+                    .Include(s => s.UserBook)
+                        .ThenInclude(ub => ub.Book)
+                    .Include(s => s.UserBook)
+                        .ThenInclude(ub => ub.User)
+                    .Include(s => s.BorrowerUser)
+                    .FirstOrDefaultAsync(s => s.Id == id);
+
+                if (share is null)
+                    return Results.NotFound("Share not found");
+
+                // Verify that current user is the lender (owner of the userbook)
+                if (share.UserBook.UserId != currentUserId)
+                    return Results.Unauthorized();
+
+                // Set the return date
+                share.ReturnDate = request.ReturnDate;
+                await context.SaveChangesAsync();
+
+                return Results.Ok(share);
+            })
+            .WithName("SetReturnDate")
+            .WithOpenApi();
         }
 
         private static string GetStatusChangeMessage(ShareStatus newStatus)
@@ -183,4 +214,5 @@ namespace BookSharingApp.Endpoints
     }
 
     public record ShareStatusUpdateRequest(ShareStatus Status);
+    public record SetReturnDateRequest(DateTime ReturnDate);
 }
