@@ -18,7 +18,13 @@ namespace BookSharingApp.Models
         [Required]
         [Column("active")]
         public bool Active { get; set; }
-        
+
+        [Required]
+        [Column("created_by")]
+        public string CreatedBy { get; set; } = string.Empty;
+
+        public User? Creator { get; set; }
+
         public ICollection<CommunityUser> Members { get; set; } = new List<CommunityUser>();
     }
 }

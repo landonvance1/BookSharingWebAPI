@@ -156,11 +156,11 @@ namespace BookSharingApp.Data
 
             var communities = new List<Community>
             {
-                new Community { Id = 1, Name = "The Loop", Active = true },
-                new Community { Id = 2, Name = "Cornerstone", Active = true },
-                new Community { Id = 3, Name = "Tower Grove South", Active = true },
-                new Community { Id = 4, Name = "Inactive Group", Active = false },
-                new Community { Id = 5, Name = "DnD Boys", Active = true }
+                new Community { Id = 1, Name = "The Loop", Active = true, CreatedBy = "user-001" }, // Created by Landon
+                new Community { Id = 2, Name = "Cornerstone", Active = true, CreatedBy = "user-002" }, // Created by John
+                new Community { Id = 3, Name = "Tower Grove South", Active = true, CreatedBy = "user-003" }, // Created by Jane
+                new Community { Id = 4, Name = "Inactive Group", Active = false, CreatedBy = "user-004" }, // Created by Bob
+                new Community { Id = 5, Name = "DnD Boys", Active = true, CreatedBy = "user-005" } // Created by Alice
             };
 
             context.Communities.AddRange(communities);
