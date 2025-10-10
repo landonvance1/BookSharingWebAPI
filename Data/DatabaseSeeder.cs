@@ -175,27 +175,27 @@ namespace BookSharingApp.Data
             var communityUsers = new List<CommunityUser>
             {
                 // The Loop community members
-                new CommunityUser { CommunityId = 1, UserId = "user-001" }, // Landon
-                new CommunityUser { CommunityId = 1, UserId = "user-002" }, // John
-                new CommunityUser { CommunityId = 1, UserId = "user-003" }, // Jane
+                new CommunityUser { CommunityId = 1, UserId = "user-001", IsModerator = true }, // Landon (creator & moderator)
+                new CommunityUser { CommunityId = 1, UserId = "user-002", IsModerator = false }, // John
+                new CommunityUser { CommunityId = 1, UserId = "user-003", IsModerator = false }, // Jane
 
                 // Cornerstone community members
-                new CommunityUser { CommunityId = 2, UserId = "user-001" }, // Landon
-                new CommunityUser { CommunityId = 2, UserId = "user-004" }, // Bob
+                new CommunityUser { CommunityId = 2, UserId = "user-001", IsModerator = false }, // Landon
+                new CommunityUser { CommunityId = 2, UserId = "user-004", IsModerator = true }, // Bob (moderator)
 
                 // Tower Grove South community members
-                new CommunityUser { CommunityId = 3, UserId = "user-002" }, // John
-                new CommunityUser { CommunityId = 3, UserId = "user-003" }, // Jane
-                new CommunityUser { CommunityId = 3, UserId = "user-004" }, // Bob
+                new CommunityUser { CommunityId = 3, UserId = "user-002", IsModerator = false }, // John
+                new CommunityUser { CommunityId = 3, UserId = "user-003", IsModerator = true }, // Jane (creator & moderator)
+                new CommunityUser { CommunityId = 3, UserId = "user-004", IsModerator = false }, // Bob
 
                 // Inactive Group community members
-                new CommunityUser { CommunityId = 4, UserId = "user-001" }, // Landon
-                new CommunityUser { CommunityId = 4, UserId = "user-005" }, // Alice
+                new CommunityUser { CommunityId = 4, UserId = "user-001", IsModerator = false }, // Landon
+                new CommunityUser { CommunityId = 4, UserId = "user-005", IsModerator = true }, // Alice (moderator)
 
                 // DnD Boys community members
-                new CommunityUser { CommunityId = 5, UserId = "user-001" }, // Landon
-                new CommunityUser { CommunityId = 5, UserId = "user-002" }, // John
-                new CommunityUser { CommunityId = 5, UserId = "user-004" }  // Bob
+                new CommunityUser { CommunityId = 5, UserId = "user-001", IsModerator = false }, // Landon
+                new CommunityUser { CommunityId = 5, UserId = "user-002", IsModerator = true }, // John (moderator)
+                new CommunityUser { CommunityId = 5, UserId = "user-004", IsModerator = false }  // Bob
             };
 
             context.CommunityUsers.AddRange(communityUsers);

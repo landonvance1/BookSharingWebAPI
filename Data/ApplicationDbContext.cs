@@ -76,6 +76,7 @@ namespace BookSharingApp.Data
                 entity.HasKey(e => new { e.CommunityId, e.UserId });
                 entity.Property(e => e.CommunityId).HasColumnName("community_id").IsRequired();
                 entity.Property(e => e.UserId).HasColumnName("user_id").IsRequired();
+                entity.Property(e => e.IsModerator).HasColumnName("is_moderator").IsRequired();
                 entity.HasOne(e => e.Community).WithMany(c => c.Members).HasForeignKey(e => e.CommunityId);
                 entity.HasOne(e => e.User).WithMany(u => u.JoinedCommunities).HasForeignKey(e => e.UserId);
             });
