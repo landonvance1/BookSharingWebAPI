@@ -66,6 +66,8 @@ namespace BookSharingApp.Data
                 entity.Property(e => e.Id).HasColumnName("community_id").ValueGeneratedOnAdd();
                 entity.Property(e => e.Name).HasColumnName("name").IsRequired();
                 entity.Property(e => e.Active).HasColumnName("active").IsRequired();
+                entity.Property(e => e.CreatedBy).HasColumnName("created_by").IsRequired();
+                entity.HasOne(e => e.Creator).WithMany().HasForeignKey(e => e.CreatedBy);
             });
 
             modelBuilder.Entity<CommunityUser>(entity =>
