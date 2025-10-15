@@ -2,6 +2,7 @@ using BookSharingApp.Data;
 using BookSharingApp.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace BookSharingApp.Endpoints
 {
@@ -24,12 +25,62 @@ namespace BookSharingApp.Endpoints
             .WithName("GetCommunityById")
             .WithOpenApi();
 
-            communities.MapPost("/", async (Community community, ApplicationDbContext context) => 
+            communities.MapPost("/", async (string name, HttpContext httpContext, ApplicationDbContext context) =>
             {
-                community.Id = 0; // Ensure EF generates new ID
-                context.Communities.Add(community);
-                await context.SaveChangesAsync();
-                return Results.Created($"/communities/{community.Id}", community);
+                // Get the current user ID from the JWT token
+                var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+
+                // Check if user has already created 2 communities
+                var userCommunitiesCount = await context.Communities
+                    .CountAsync(c => c.CreatedBy == currentUserId);
+
+                if (userCommunitiesCount >= 2)
+                {
+                    return Results.BadRequest(new { error = "You have reached the maximum limit of 2 communities." });
+                }
+
+                // Use a transaction to ensure both operations succeed or fail together
+                using var transaction = await context.Database.BeginTransactionAsync();
+
+                try
+                {
+                    // Create the new community
+                    var community = new Community
+                    {
+                        Name = name,
+                        CreatedBy = currentUserId,
+                        Active = true
+                    };
+
+                    context.Communities.Add(community);
+                    await context.SaveChangesAsync();
+
+                    // Add the creator as a community user with moderator privileges
+                    var communityUser = new CommunityUser
+                    {
+                        CommunityId = community.Id,
+                        UserId = currentUserId,
+                        IsModerator = true
+                    };
+
+                    context.CommunityUsers.Add(communityUser);
+                    await context.SaveChangesAsync();
+
+                    // Commit the transaction if both operations succeed
+                    await transaction.CommitAsync();
+
+                    // Clear navigation properties to avoid circular reference issues
+                    community.Members = null!;
+                    community.Creator = null;
+
+                    return Results.Created($"/communities/{community.Id}", community);
+                }
+                catch
+                {
+                    // Transaction will automatically rollback if we don't commit
+                    await transaction.RollbackAsync();
+                    throw;
+                }
             })
             .WithName("AddCommunity")
             .WithOpenApi();
