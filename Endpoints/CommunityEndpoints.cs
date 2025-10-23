@@ -1,3 +1,4 @@
+using BookSharingApp.Common;
 using BookSharingApp.Data;
 using BookSharingApp.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -34,7 +35,7 @@ namespace BookSharingApp.Endpoints
                 var userCommunitiesCount = await context.Communities
                     .CountAsync(c => c.CreatedBy == currentUserId);
 
-                if (userCommunitiesCount >= 2)
+                if (userCommunitiesCount >= Constants.CommunityCreationLimit)
                 {
                     return Results.BadRequest(new { error = "You have reached the maximum limit of 2 communities." });
                 }
