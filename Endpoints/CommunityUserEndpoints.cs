@@ -46,19 +46,34 @@ namespace BookSharingApp.Endpoints
             .WithName("JoinCommunity")
             .WithOpenApi();
 
-            communityUsers.MapDelete("/leave/{communityId:int}", async (int communityId, HttpContext httpContext, ApplicationDbContext context) => 
+            communityUsers.MapDelete("/leave/{communityId:int}", async (int communityId, HttpContext httpContext, ApplicationDbContext context) =>
             {
                 var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
 
                 var communityUser = await context.CommunityUsers
                     .FirstOrDefaultAsync(cu => cu.CommunityId == communityId && cu.UserId == currentUserId);
-                
+
                 if (communityUser is null)
                 {
                     return Results.NotFound("User is not a member of this community");
                 }
 
+                // Check if this is the last user in the community
+                var memberCount = await context.CommunityUsers
+                    .CountAsync(cu => cu.CommunityId == communityId);
+
                 context.CommunityUsers.Remove(communityUser);
+
+                // If this is the last user, delete the community as well
+                if (memberCount == 1)
+                {
+                    var community = await context.Communities.FindAsync(communityId);
+                    if (community is not null)
+                    {
+                        context.Communities.Remove(community);
+                    }
+                }
+
                 await context.SaveChangesAsync();
                 return Results.NoContent();
             })
