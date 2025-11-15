@@ -17,10 +17,10 @@ namespace BookSharingApp.Validators
             var isLender = share.UserBook.UserId == currentUserId;
             var isBorrower = share.Borrower == currentUserId;
 
-            // Only lender can move to Ready and HomeSafe
-            if ((newStatus == ShareStatus.Ready || newStatus == ShareStatus.HomeSafe) && !isLender)
+            // Only lender can move to Declined, Ready and HomeSafe
+            if ((newStatus == ShareStatus.Ready || newStatus == ShareStatus.HomeSafe || newStatus == ShareStatus.Declined) && !isLender)
             {
-                return ValidationResult.Failure("Only the lender can update status to Ready or Home Safe");
+                return ValidationResult.Failure("Only the lender can update status to Declined, Ready, or Home Safe");
             }
 
             // Only borrower can move to PickedUp and Returned
@@ -51,12 +51,13 @@ namespace BookSharingApp.Validators
             // Check valid progression: Requested -> Ready -> PickedUp -> Returned -> HomeSafe
             return currentStatus switch
             {
-                ShareStatus.Requested => newStatus == ShareStatus.Ready,
+                ShareStatus.Requested => newStatus == ShareStatus.Ready || newStatus == ShareStatus.Declined,
                 ShareStatus.Ready => newStatus == ShareStatus.PickedUp,
                 ShareStatus.PickedUp => newStatus == ShareStatus.Returned,
                 ShareStatus.Returned => newStatus == ShareStatus.HomeSafe,
                 ShareStatus.HomeSafe => false, // Terminal state
                 ShareStatus.Disputed => false, // Terminal state
+                ShareStatus.Declined => false, // Terminal state
                 _ => false
             };
         }
