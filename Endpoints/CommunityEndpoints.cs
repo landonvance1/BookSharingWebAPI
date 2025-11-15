@@ -37,7 +37,7 @@ namespace BookSharingApp.Endpoints
 
                 if (userCommunitiesCount >= Constants.CommunityCreationLimit)
                 {
-                    return Results.BadRequest(new { error = "You have reached the maximum limit of 2 communities." });
+                    return Results.BadRequest(new { error = "You have reached the maximum limit of 5 communities." });
                 }
 
                 // Use a transaction to ensure both operations succeed or fail together
