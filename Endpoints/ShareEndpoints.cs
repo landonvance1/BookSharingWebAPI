@@ -3,7 +3,6 @@ using BookSharingApp.Models;
 using BookSharingApp.Common;
 using BookSharingApp.Validators;
 using BookSharingApp.Services;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -94,7 +93,8 @@ namespace BookSharingApp.Endpoints
                         .ThenInclude(ub => ub.Book)
                     .Include(s => s.UserBook)
                         .ThenInclude(ub => ub.User)
-                    .Where(s => s.Borrower == currentUserId && s.Status <= ShareStatus.Returned)
+                    .Where(s => s.Borrower == currentUserId &&
+                        !context.ShareUserStates.Any(sus => sus.ShareId == s.Id && sus.UserId == currentUserId && sus.IsArchived))
                     .ToListAsync();
 
                 return Results.Ok(borrowerShares);
@@ -111,7 +111,8 @@ namespace BookSharingApp.Endpoints
                     .Include(s => s.UserBook)
                         .ThenInclude(ub => ub.Book)
                     .Include(s => s.BorrowerUser)
-                    .Where(s => s.UserBook.UserId == currentUserId && s.Status <= ShareStatus.Returned)
+                    .Where(s => s.UserBook.UserId == currentUserId &&
+                        !context.ShareUserStates.Any(sus => sus.ShareId == s.Id && sus.UserId == currentUserId && sus.IsArchived))
                     .ToListAsync();
 
                 return Results.Ok(lenderShares);
@@ -196,6 +197,97 @@ namespace BookSharingApp.Endpoints
                 return Results.Ok(share);
             })
             .WithName("SetReturnDate")
+            .WithOpenApi();
+
+            // POST /shares/{id}/archive - Archive a share (terminal status only)
+            shares.MapPost("/{id}/archive", async (int id, HttpContext httpContext, ApplicationDbContext context) =>
+            {
+                var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+
+                // Find the share with required includes
+                var share = await context.Shares
+                    .Include(s => s.UserBook)
+                    .FirstOrDefaultAsync(s => s.Id == id);
+
+                if (share is null)
+                    return Results.NotFound("Share not found");
+
+                // Verify that current user is the lender or borrower
+                if (share.UserBook.UserId != currentUserId && share.Borrower != currentUserId)
+                    return Results.Unauthorized();
+
+                // Verify that share is in terminal status
+                if (share.Status != ShareStatus.Declined &&
+                    share.Status != ShareStatus.Disputed &&
+                    share.Status != ShareStatus.HomeSafe)
+                {
+                    return Results.BadRequest("Can only archive shares in terminal status (Declined, Disputed, or HomeSafe)");
+                }
+
+                // Check if already archived
+                var existingState = await context.ShareUserStates
+                    .FirstOrDefaultAsync(sus => sus.ShareId == id && sus.UserId == currentUserId);
+
+                if (existingState != null)
+                {
+                    if (existingState.IsArchived)
+                        return Results.BadRequest("Share is already archived");
+
+                    // Update existing state
+                    existingState.IsArchived = true;
+                    existingState.ArchivedAt = DateTime.UtcNow;
+                }
+                else
+                {
+                    // Create new state
+                    var shareUserState = new ShareUserState
+                    {
+                        ShareId = id,
+                        UserId = currentUserId,
+                        IsArchived = true,
+                        ArchivedAt = DateTime.UtcNow
+                    };
+                    context.ShareUserStates.Add(shareUserState);
+                }
+
+                await context.SaveChangesAsync();
+                return Results.Ok(new { message = "Share archived successfully" });
+            })
+            .WithName("ArchiveShare")
+            .WithOpenApi();
+
+            // POST /shares/{id}/unarchive - Unarchive a share
+            shares.MapPost("/{id}/unarchive", async (int id, HttpContext httpContext, ApplicationDbContext context) =>
+            {
+                var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+
+                // Find the share
+                var share = await context.Shares
+                    .Include(s => s.UserBook)
+                    .FirstOrDefaultAsync(s => s.Id == id);
+
+                if (share is null)
+                    return Results.NotFound("Share not found");
+
+                // Verify that current user is the lender or borrower
+                if (share.UserBook.UserId != currentUserId && share.Borrower != currentUserId)
+                    return Results.Unauthorized();
+
+                // Find the share user state
+                var shareUserState = await context.ShareUserStates
+                    .FirstOrDefaultAsync(sus => sus.ShareId == id && sus.UserId == currentUserId);
+
+                if (shareUserState is null || !shareUserState.IsArchived)
+                    return Results.BadRequest("Share is not archived");
+
+                // Update state to unarchived
+                shareUserState.IsArchived = false;
+                shareUserState.ArchivedAt = null;
+
+                await context.SaveChangesAsync();
+                return Results.Ok(new { message = "Share unarchived successfully" });
+            })
+            .WithName("UnarchiveShare")
             .WithOpenApi();
         }
 
