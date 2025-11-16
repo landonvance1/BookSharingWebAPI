@@ -17,6 +17,7 @@ namespace BookSharingApp.Data
         public DbSet<CommunityUser> CommunityUsers { get; set; }
         public DbSet<UserBook> UserBooks { get; set; }
         public DbSet<Share> Shares { get; set; }
+        public DbSet<ShareUserState> ShareUserStates { get; set; }
         public DbSet<ChatThread> ChatThreads { get; set; }
         public DbSet<ChatMessage> ChatMessages { get; set; }
         public DbSet<ShareChatThread> ShareChatThreads { get; set; }
@@ -104,6 +105,22 @@ namespace BookSharingApp.Data
                 entity.Property(e => e.Status).HasColumnName("status").IsRequired();
                 entity.HasOne(e => e.UserBook).WithMany().HasForeignKey(e => e.UserBookId);
                 entity.HasOne(e => e.BorrowerUser).WithMany().HasForeignKey(e => e.Borrower);
+            });
+
+            modelBuilder.Entity<ShareUserState>(entity =>
+            {
+                entity.ToTable("share_user_state");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                entity.Property(e => e.ShareId).HasColumnName("share_id").IsRequired();
+                entity.Property(e => e.UserId).HasColumnName("user_id").IsRequired();
+                entity.Property(e => e.IsArchived).HasColumnName("is_archived").IsRequired();
+                entity.Property(e => e.ArchivedAt).HasColumnName("archived_at");
+                entity.HasOne(e => e.Share).WithMany().HasForeignKey(e => e.ShareId);
+                entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId);
+
+                // Ensure unique combination of ShareId and UserId
+                entity.HasIndex(e => new { e.ShareId, e.UserId }).IsUnique().HasDatabaseName("IX_ShareUserState_ShareId_UserId_Unique");
             });
 
             modelBuilder.Entity<ChatThread>(entity =>
