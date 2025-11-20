@@ -120,6 +120,43 @@ namespace BookSharingApp.Endpoints
             .WithName("GetLenderShares")
             .WithOpenApi();
 
+            // GET /shares/borrower/archived - Get archived shares where current user is the borrower
+            shares.MapGet("/borrower/archived", async (HttpContext httpContext, ApplicationDbContext context) =>
+            {
+                var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+
+                List<Share> borrowerShares = await context.Shares
+                    .Include(s => s.UserBook)
+                        .ThenInclude(ub => ub.Book)
+                    .Include(s => s.UserBook)
+                        .ThenInclude(ub => ub.User)
+                    .Where(s => s.Borrower == currentUserId &&
+                        context.ShareUserStates.Any(sus => sus.ShareId == s.Id && sus.UserId == currentUserId && sus.IsArchived))
+                    .ToListAsync();
+
+                return Results.Ok(borrowerShares);
+            })
+            .WithName("GetArchivedBorrowerShares")
+            .WithOpenApi();
+
+            // GET /shares/lender/archived - Get archived shares where current user is the lender
+            shares.MapGet("/lender/archived", async (HttpContext httpContext, ApplicationDbContext context) =>
+            {
+                var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+
+                List<Share> lenderShares = await context.Shares
+                    .Include(s => s.UserBook)
+                        .ThenInclude(ub => ub.Book)
+                    .Include(s => s.BorrowerUser)
+                    .Where(s => s.UserBook.UserId == currentUserId &&
+                        context.ShareUserStates.Any(sus => sus.ShareId == s.Id && sus.UserId == currentUserId && sus.IsArchived))
+                    .ToListAsync();
+
+                return Results.Ok(lenderShares);
+            })
+            .WithName("GetArchivedLenderShares")
+            .WithOpenApi();
+
             // PUT /shares/{id}/status - Update share status
             shares.MapPut("/{id}/status", async (int id, [FromBody] ShareStatusUpdateRequest request,
                 HttpContext httpContext, ApplicationDbContext context, IChatService chatService) =>
