@@ -1,6 +1,7 @@
 using BookSharingApp.Data;
 using BookSharingApp.Models;
 using BookSharingApp.Common;
+using BookSharingApp.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,15 +17,11 @@ namespace BookSharingApp.Endpoints
 
             // GET /shares/{shareId}/chat/messages - Get paginated chat messages
             chats.MapGet("/messages", async (int shareId, HttpContext httpContext, ApplicationDbContext context,
-                [FromQuery] int page = 1, [FromQuery] int pageSize = 50) =>
+                IChatService chatService, [FromQuery] int page = 1, [FromQuery] int pageSize = 50) =>
             {
                 var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
 
-                // Validate page parameters
-                if (page < 1) page = 1;
-                if (pageSize < 1 || pageSize > 100) pageSize = 50;
-
-                // Find the share chat thread
+                // Verify access permissions
                 var shareChatThread = await context.ShareChatThreads
                     .Include(sct => sct.Share)
                         .ThenInclude(s => s.UserBook)
@@ -38,14 +35,13 @@ namespace BookSharingApp.Endpoints
                 if (share.Borrower != currentUserId && share.UserBook.UserId != currentUserId)
                     return Results.Forbid();
 
-                // Get paginated messages
-                var messages = await context.ChatMessages
-                    .Include(m => m.Sender)
-                    .Where(m => m.ThreadId == shareChatThread.ThreadId)
-                    .OrderByDescending(m => m.SentAt)
-                    .Skip((page - 1) * pageSize)
-                    .Take(pageSize)
-                    .Select(m => new
+                try
+                {
+                    // Get messages through service
+                    var messages = await chatService.GetMessageThreadAsync(shareId, page, pageSize);
+                    var totalMessages = await chatService.GetMessageCountAsync(shareId);
+
+                    var messagesDto = messages.Select(m => new
                     {
                         m.Id,
                         m.Content,
@@ -57,69 +53,39 @@ namespace BookSharingApp.Endpoints
                             m.Sender.FirstName,
                             m.Sender.LastName
                         }
-                    })
-                    .ToListAsync();
+                    });
 
-                var totalMessages = await context.ChatMessages
-                    .CountAsync(m => m.ThreadId == shareChatThread.ThreadId);
-
-                var result = new
-                {
-                    Messages = messages,
-                    Pagination = new
+                    var result = new
                     {
-                        Page = page,
-                        PageSize = pageSize,
-                        TotalMessages = totalMessages,
-                        TotalPages = (int)Math.Ceiling(totalMessages / (double)pageSize)
-                    }
-                };
+                        Messages = messagesDto,
+                        Pagination = new
+                        {
+                            Page = page,
+                            PageSize = pageSize,
+                            TotalMessages = totalMessages,
+                            TotalPages = (int)Math.Ceiling(totalMessages / (double)pageSize)
+                        }
+                    };
 
-                return Results.Ok(result);
+                    return Results.Ok(result);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return Results.NotFound(ex.Message);
+                }
             })
             .WithName("GetShareChatMessages")
             .WithOpenApi();
 
             // POST /shares/{shareId}/chat/messages - Send a message (also broadcasts via SignalR)
             chats.MapPost("/messages", async (int shareId, [FromBody] SendMessageRequest request,
-                HttpContext httpContext, ApplicationDbContext context) =>
+                HttpContext httpContext, IChatService chatService) =>
             {
                 var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
 
-                // Validate request
-                if (string.IsNullOrWhiteSpace(request.Content) || request.Content.Length > 2000)
-                    return Results.BadRequest("Message content is required and must be less than 2000 characters");
-
                 try
                 {
-                    var chatContext = await ShareChatContext.CreateForShareAsync(shareId, context);
-                    if (chatContext == null || !await chatContext.CanUserAccessAsync(currentUserId, context))
-                    {
-                        return Results.NotFound("Share not found or access denied");
-                    }
-
-                    var message = new ChatMessage
-                    {
-                        ThreadId = chatContext.ThreadId,
-                        SenderId = currentUserId,
-                        Content = request.Content.Trim(),
-                        SentAt = DateTime.UtcNow,
-                        IsSystemMessage = false
-                    };
-
-                    context.ChatMessages.Add(message);
-
-                    // Update thread last activity
-                    var thread = await context.ChatThreads.FindAsync(chatContext.ThreadId);
-                    if (thread != null)
-                    {
-                        thread.LastActivity = DateTime.UtcNow;
-                    }
-
-                    await context.SaveChangesAsync();
-
-                    // Load sender info for response
-                    await context.Entry(message).Reference(m => m.Sender).LoadAsync();
+                    var message = await chatService.SendMessageAsync(shareId, currentUserId, request.Content);
 
                     var messageResponse = new
                     {
@@ -136,6 +102,18 @@ namespace BookSharingApp.Endpoints
                     };
 
                     return Results.Created($"/shares/{shareId}/chat/messages/{message.Id}", messageResponse);
+                }
+                catch (ArgumentException ex)
+                {
+                    return Results.BadRequest(ex.Message);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return Results.NotFound(ex.Message);
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    return Results.Forbid();
                 }
                 catch (Exception)
                 {

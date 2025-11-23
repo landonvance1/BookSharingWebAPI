@@ -15,6 +15,7 @@ namespace BookSharingApp.Services
             _logger = logger;
         }
 
+        // Chat thread management
         public async Task CreateShareChatAsync(int shareId)
         {
             try
@@ -101,6 +102,105 @@ namespace BookSharingApp.Services
                 _logger.LogError(ex, "Failed to send system message to share {ShareId}", shareId);
                 throw;
             }
+        }
+
+        // Message operations
+        public async Task<List<ChatMessage>> GetMessageThreadAsync(int shareId, int page, int pageSize)
+        {
+            // Validate page parameters
+            if (page < 1) page = 1;
+            if (pageSize < 1 || pageSize > 100) pageSize = 50;
+
+            // Find the share chat thread
+            var shareChatThread = await _context.ShareChatThreads
+                .FirstOrDefaultAsync(sct => sct.ShareId == shareId);
+
+            if (shareChatThread == null)
+                throw new InvalidOperationException("Share chat thread not found");
+
+            // Get paginated messages
+            var messages = await _context.ChatMessages
+                .Include(m => m.Sender)
+                .Where(m => m.ThreadId == shareChatThread.ThreadId)
+                .OrderByDescending(m => m.SentAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return messages;
+        }
+
+        public async Task<int> GetMessageCountAsync(int shareId)
+        {
+            var shareChatThread = await _context.ShareChatThreads
+                .FirstOrDefaultAsync(sct => sct.ShareId == shareId);
+
+            if (shareChatThread == null)
+                return 0;
+
+            return await _context.ChatMessages
+                .CountAsync(m => m.ThreadId == shareChatThread.ThreadId);
+        }
+
+        public async Task<ChatMessage?> GetMessageAsync(int messageId)
+        {
+            return await _context.ChatMessages
+                .Include(m => m.Sender)
+                .FirstOrDefaultAsync(m => m.Id == messageId);
+        }
+
+        public async Task<ChatMessage> SendMessageAsync(int shareId, string senderId, string content)
+        {
+            // Validate message content
+            if (string.IsNullOrWhiteSpace(content) || content.Length > 2000)
+                throw new ArgumentException("Message content is required and must be less than 2000 characters");
+
+            var chatContext = await ShareChatContext.CreateForShareAsync(shareId, _context);
+            if (chatContext == null)
+                throw new InvalidOperationException("Share not found");
+
+            if (!await chatContext.CanUserAccessAsync(senderId, _context))
+                throw new UnauthorizedAccessException("Access denied to this share chat");
+
+            var message = new ChatMessage
+            {
+                ThreadId = chatContext.ThreadId,
+                SenderId = senderId,
+                Content = content.Trim(),
+                SentAt = DateTime.UtcNow,
+                IsSystemMessage = false
+            };
+
+            _context.ChatMessages.Add(message);
+
+            // Update thread last activity
+            var thread = await _context.ChatThreads.FindAsync(chatContext.ThreadId);
+            if (thread != null)
+            {
+                thread.LastActivity = DateTime.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
+
+            // Load sender info for response
+            await _context.Entry(message).Reference(m => m.Sender).LoadAsync();
+
+            _logger.LogInformation("Message {MessageId} sent in share {ShareId} by user {SenderId}",
+                message.Id, shareId, senderId);
+
+            return message;
+        }
+
+        public async Task DeleteMessageAsync(int messageId)
+        {
+            var message = await _context.ChatMessages.FindAsync(messageId);
+            if (message == null)
+                throw new InvalidOperationException("Message not found");
+
+            _context.ChatMessages.Remove(message);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Deleted message {MessageId}", messageId);
         }
     }
 }
