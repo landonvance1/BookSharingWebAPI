@@ -85,6 +85,7 @@ builder.Services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSch
 // Register custom services
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddScoped<IShareService, ShareService>();
 builder.Services.AddSingleton<IRateLimitService, RateLimitService>();
 builder.Services.AddSingleton<IRateLimiter>(provider =>
 {
