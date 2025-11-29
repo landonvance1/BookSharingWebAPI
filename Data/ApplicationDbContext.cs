@@ -21,6 +21,7 @@ namespace BookSharingApp.Data
         public DbSet<ChatThread> ChatThreads { get; set; }
         public DbSet<ChatMessage> ChatMessages { get; set; }
         public DbSet<ShareChatThread> ShareChatThreads { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -161,6 +162,30 @@ namespace BookSharingApp.Data
 
                 // Ensure one thread per share
                 entity.HasIndex(e => e.ShareId).IsUnique().HasDatabaseName("IX_ShareChatThread_ShareId_Unique");
+            });
+
+            modelBuilder.Entity<Notification>(entity =>
+            {
+                entity.ToTable("notification");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("notification_id").ValueGeneratedOnAdd();
+                entity.Property(e => e.UserId).HasColumnName("user_id").IsRequired();
+                entity.Property(e => e.NotificationType).HasColumnName("notification_type").HasMaxLength(50).IsRequired();
+                entity.Property(e => e.Message).HasColumnName("message").HasMaxLength(500).IsRequired();
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
+                entity.Property(e => e.ReadAt).HasColumnName("read_at");
+                entity.Property(e => e.ShareId).HasColumnName("share_id");
+                entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id").IsRequired();
+
+                entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId);
+                entity.HasOne(e => e.Share).WithMany().HasForeignKey(e => e.ShareId);
+                entity.HasOne(e => e.CreatedByUser).WithMany().HasForeignKey(e => e.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+
+                // Index for efficient unread queries
+                entity.HasIndex(e => new { e.UserId, e.ReadAt }).HasDatabaseName("IX_Notification_UserId_ReadAt");
+
+                // Index for auto-mark-as-read queries
+                entity.HasIndex(e => new { e.UserId, e.ShareId, e.NotificationType, e.ReadAt }).HasDatabaseName("IX_Notification_UserId_ShareId_Type_ReadAt");
             });
         }
     }

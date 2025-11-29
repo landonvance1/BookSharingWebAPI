@@ -8,11 +8,13 @@ namespace BookSharingApp.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<ChatService> _logger;
+        private readonly INotificationService _notificationService;
 
-        public ChatService(ApplicationDbContext context, ILogger<ChatService> logger)
+        public ChatService(ApplicationDbContext context, ILogger<ChatService> logger, INotificationService notificationService)
         {
             _context = context;
             _logger = logger;
+            _notificationService = notificationService;
         }
 
         // Chat thread management
@@ -187,6 +189,13 @@ namespace BookSharingApp.Services
 
             _logger.LogInformation("Message {MessageId} sent in share {ShareId} by user {SenderId}",
                 message.Id, shareId, senderId);
+
+            // Create notification for the other party about new message
+            await _notificationService.CreateShareNotificationAsync(
+                shareId,
+                Common.NotificationType.ShareMessageReceived,
+                $"New message from {message.Sender.FullName}",
+                senderId);
 
             return message;
         }
