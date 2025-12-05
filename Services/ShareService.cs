@@ -9,11 +9,13 @@ namespace BookSharingApp.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<ShareService> _logger;
+        private readonly INotificationService _notificationService;
 
-        public ShareService(ApplicationDbContext context, ILogger<ShareService> logger)
+        public ShareService(ApplicationDbContext context, ILogger<ShareService> logger, INotificationService notificationService)
         {
             _context = context;
             _logger = logger;
+            _notificationService = notificationService;
         }
 
         // Reads - simple pass-through to EF
@@ -130,6 +132,13 @@ namespace BookSharingApp.Services
             _logger.LogInformation("Created share {ShareId} for userbook {UserBookId} by borrower {BorrowerId}",
                 share.Id, userBookId, borrowerId);
 
+            // Create notification for lender about new share request
+            await _notificationService.CreateShareNotificationAsync(
+                share.Id,
+                Common.NotificationType.ShareStatusChanged,
+                $"New share request for '{userBook.Book?.Title ?? "a book"}' from {await GetUserNameAsync(borrowerId)}",
+                borrowerId);
+
             return share;
         }
 
@@ -153,6 +162,28 @@ namespace BookSharingApp.Services
 
             _logger.LogInformation("Updated share {ShareId} status to {Status} by user {UserId}",
                 shareId, newStatus, updatedByUserId);
+
+            // Create notification for the other party about status change
+            var statusText = newStatus switch
+            {
+                ShareStatus.Requested => "requested",
+                ShareStatus.Ready => "ready for pickup",
+                ShareStatus.PickedUp => "picked up",
+                ShareStatus.Returned => "returned",
+                ShareStatus.HomeSafe => "confirmed home safe",
+                ShareStatus.Disputed => "disputed",
+                ShareStatus.Declined => "declined",
+                _ => newStatus.ToString()
+            };
+
+            var updaterName = await GetUserNameAsync(updatedByUserId);
+            var bookTitle = share.UserBook?.Book?.Title ?? "the book";
+
+            await _notificationService.CreateShareNotificationAsync(
+                shareId,
+                Common.NotificationType.ShareStatusChanged,
+                $"'{bookTitle}' share is now {statusText} by {updaterName}",
+                updatedByUserId);
         }
 
         public async Task UpdateShareDueDateAsync(int shareId, DateTime newDueDate, string updatedByUserId)
@@ -179,6 +210,17 @@ namespace BookSharingApp.Services
 
             _logger.LogInformation("Updated share {ShareId} return date to {ReturnDate} by user {UserId}",
                 shareId, newDueDate, updatedByUserId);
+
+            // Create notification for borrower about due date change
+            var lenderName = await GetUserNameAsync(updatedByUserId);
+            var bookTitle = share.UserBook?.Book?.Title ?? "the book";
+            var dueDateFormatted = newDueDate.ToString("MMMM dd, yyyy");
+
+            await _notificationService.CreateShareNotificationAsync(
+                shareId,
+                Common.NotificationType.ShareDueDateChanged,
+                $"Return date for '{bookTitle}' updated to {dueDateFormatted} by {lenderName}",
+                updatedByUserId);
         }
 
         public async Task ArchiveShareAsync(int shareId, string archivedByUserId)
@@ -262,6 +304,13 @@ namespace BookSharingApp.Services
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Unarchived share {ShareId} for user {UserId}", shareId, unarchivedByUserId);
+        }
+
+        // Helper methods
+        private async Task<string> GetUserNameAsync(string userId)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            return user != null ? user.FullName : "Someone";
         }
     }
 }

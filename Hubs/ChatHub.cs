@@ -15,12 +15,14 @@ namespace BookSharingApp.Hubs
         private readonly ApplicationDbContext _context;
         private readonly IRateLimitService _rateLimitService;
         private readonly ILogger<ChatHub> _logger;
+        private readonly INotificationService _notificationService;
 
-        public ChatHub(ApplicationDbContext context, IRateLimitService rateLimitService, ILogger<ChatHub> logger)
+        public ChatHub(ApplicationDbContext context, IRateLimitService rateLimitService, ILogger<ChatHub> logger, INotificationService notificationService)
         {
             _context = context;
             _rateLimitService = rateLimitService;
             _logger = logger;
+            _notificationService = notificationService;
         }
 
         public async Task JoinShareChat(int shareId)
@@ -145,6 +147,13 @@ namespace BookSharingApp.Hubs
                 await Clients.Group(groupName).SendAsync("ReceiveMessage", messageDto);
 
                 _logger.LogInformation("Message sent in share chat {ShareId} by user {UserId}", shareId, userId);
+
+                // Create notification for the other party about new message
+                await _notificationService.CreateShareNotificationAsync(
+                    shareId,
+                    Common.NotificationType.ShareMessageReceived,
+                    $"New message from {message.Sender.FullName}",
+                    userId);
             }
             catch (Exception ex)
             {
