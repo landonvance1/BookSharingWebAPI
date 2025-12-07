@@ -2,9 +2,26 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
+## Application Overview
 
-This is a .NET 8 Web API project for a book sharing application built using ASP.NET Core Minimal APIs. The application provides REST endpoints for managing books with in-memory storage using a mock database.
+BookSharingWebAPI is the backend for a **community-based book lending platform** that enables users to share physical books with others in their communities. The API facilitates the entire borrowing lifecycle from discovery to return, with built-in chat, notifications, and dispute resolution.
+
+**Core Value Proposition:**
+- Discover books available in your communities
+- Request to borrow books from other members
+- Track lending/borrowing status through a structured workflow
+- Communicate with lenders/borrowers via real-time chat
+- Manage your personal library and share availability
+
+**Technology Stack:**
+- **ASP.NET Core 8.0** - Minimal APIs pattern
+- **PostgreSQL 15** - Relational database (via Docker)
+- **Entity Framework Core 9.0.8** - ORM with Code-First migrations
+- **ASP.NET Core Identity** - User management and authentication
+- **JWT Authentication** - Access tokens (24h) + refresh tokens (7d)
+- **SignalR** - WebSocket-based real-time messaging
+- **OpenLibrary API** - External book search integration
+- **Docker & Docker Compose** - Containerized deployment
 
 ## Development Commands
 
@@ -65,39 +82,185 @@ Replace `YOUR_LOCAL_PASSWORD` with your local PostgreSQL password and `YOUR_JWT_
 ## Architecture
 
 ### Project Structure
-- **Program.cs** - Application entry point and configuration
-- **Models/** - Data models (Book entity)
-- **Endpoints/** - API endpoint definitions using extension methods
-- **Data/** - Data access layer with mock database implementation
+```
+BookSharingWebAPI/
+├── Common/              # Shared constants and enums
+├── Data/                # EF Core DbContext and seeding
+├── Endpoints/           # Minimal API endpoint definitions
+├── Hubs/                # SignalR hubs (ChatHub)
+├── Middleware/          # Custom middleware (rate limiting)
+├── Migrations/          # EF Core migrations (~26 files)
+├── Models/              # Entity models and DTOs
+├── Services/            # Business logic layer
+├── Validators/          # Business rule validators
+└── wwwroot/images/      # Book cover thumbnails
+```
 
 ### Key Components
 
 1. **Minimal API Architecture**: Uses ASP.NET Core Minimal APIs with static extension methods for endpoint mapping
-2. **Dependency Injection**: MockDatabase is registered as a singleton service
-3. **In-Memory Storage**: MockDatabase class provides CRUD operations with seed data
-4. **Swagger Integration**: Configured for development environment with OpenAPI documentation
+2. **Service Layer Pattern**: Business logic separated into service classes (ShareService, NotificationService, etc.)
+3. **Entity Framework Core**: PostgreSQL database with Code-First migrations
+4. **Dependency Injection**: Services, DbContext, and repositories registered in DI container
+5. **Swagger Integration**: Configured for development environment with OpenAPI documentation
+6. **SignalR Hub**: Real-time WebSocket communication for chat functionality
 
 ### Data Flow
-- Endpoints are mapped in `BookEndpoints.MapBookEndpoints()` extension method
-- MockDatabase singleton handles all data operations
-- Book model is a simple POCO with Id, Title, Author, and ISBN properties
+- HTTP requests → Endpoints → Services → DbContext → PostgreSQL
+- Real-time chat: SignalR Hub → ChatHub → Broadcast to connected clients
+- Authentication: JWT middleware validates tokens before reaching endpoints
 
-### Available Endpoints
+## Core Entities & Domain Model
 
-#### Authentication Endpoints
-- POST `/auth/register` - Register a new user (email, password, firstName, lastName)
-- POST `/auth/login` - Login with email and password
-- POST `/auth/refresh` - Refresh access token with refresh token
+### User
+- Unique identifier (GUID)
+- Profile: email, firstName, lastName, fullName
+- Authentication via ASP.NET Core Identity with JWT tokens
+- Can join multiple communities
+- Managed by ASP.NET Core Identity tables
 
-#### Book Endpoints (Require Authentication)
-- GET `/books` - Get all books
-- GET `/books/{id}` - Get book by ID
-- POST `/books` - Add new book
-- GET `/books/search?title=&author=` - Search books by title and/or author
+### Book
+- Basic book information: id, title, author, thumbnailUrl
+- Unique constraint on (title, author) combination
+- Thumbnails downloaded from OpenLibrary or stored locally in wwwroot/images/
+- Multiple users can own the same book
 
-**Note:** All book endpoints require a valid JWT token in the Authorization header: `Authorization: Bearer <token>`
+### UserBook (Library Entry)
+- Links User to Book (ownership relationship)
+- **Status enum**: Available(1), BeingShared(2), Unavailable(3)
+- Users manage their personal library of books
+- Only available books can be requested by others
 
-## API Endpoints
+### Share (Lending Transaction)
+The core entity representing a book-sharing relationship between lender and borrower.
+
+**Key Properties:**
+- `userBookId` - The lender's book being shared
+- `borrower` - User ID of the borrower
+- `returnDate` - Expected return date (set by lender)
+- `status` - Current workflow state
+
+**ShareStatus Workflow:**
+1. **Requested** - Borrower requests to borrow → Lender gets notification
+2. **Ready** - Lender approves → Book ready for pickup
+3. **PickedUp** - Borrower confirms pickup → Book in borrower's possession
+4. **Returned** - Borrower returns book → Awaiting lender confirmation
+5. **HomeSafe** - Lender confirms receipt → Transaction complete ✓
+
+**Alternative Paths:**
+- **Declined** - Lender rejects request (terminal state)
+- **Disputed** - Either party raises issue at any stage (terminal state)
+
+**Authorization:**
+- Lender-only actions: Ready, HomeSafe, Declined, SetReturnDate
+- Borrower-only actions: PickedUp, Returned
+- Either party: Disputed, Archive/Unarchive
+
+**Validation Rules:**
+- Cannot borrow own books
+- Must share a community with book owner
+- No duplicate active shares for same book by the same borrower
+- Cannot skip workflow stages or move backwards
+- Only available books can be requested
+- Only terminal states (HomeSafe, Disputed, Declined) can be archived
+
+### ShareUserState (Archive State)
+- Tracks per-user archive status for shares
+- Allows borrower and lender to independently archive completed shares
+- Only terminal states can be archived
+
+### Community
+- Groups of users who share books with each other
+- Users can join multiple communities
+- Book searches are scoped to shared communities (privacy by design)
+- Users limited to creating 5 communities
+- Creator automatically becomes moderator
+- Community deleted when last member leaves
+
+### ChatMessage & ChatThread
+- Each share has a dedicated chat thread
+- Real-time messaging via SignalR WebSocket
+- Message types: user messages + system messages (status changes)
+- Rate limited: 30 messages per 2 minutes per user
+- Paginated message history (50 per page, max 100)
+
+### Notification
+- **Types**: ShareStatusChanged, ShareDueDateChanged, ShareMessageReceived
+- Separate read tracking for share vs. chat notifications
+- Includes share details, message content, and actor information
+- Auto-created when share status changes or messages are sent
+- Persists even if share is archived
+
+## API Endpoint Reference
+
+**Note:** All endpoints except `/auth/*` require a valid JWT token in the Authorization header: `Authorization: Bearer <token>`
+
+### Authentication (`/auth`)
+- `POST /auth/register` - Create account
+- `POST /auth/login` - Authenticate user
+- `POST /auth/refresh` - Refresh access token
+
+### Books (`/books`)
+- `GET /books` - List all books
+- `GET /books/{id}` - Get book by ID
+- `POST /books?addToUser={bool}` - Add new book (downloads thumbnail from OpenLibrary)
+- `GET /books/search?title={}&author={}&includeExternal={bool}` - Search (local + OpenLibrary)
+- `GET /books/isbn/{isbn}` - Lookup by ISBN (OpenLibrary)
+
+### User Books / Library (`/user-books`)
+- `GET /user-books/user/{userId}` - Get user's library
+- `POST /user-books` - Add book to library (body: bookId)
+- `PUT /user-books/{id}/status` - Update availability status
+- `DELETE /user-books/{id}` - Remove from library
+- `GET /user-books/search?search={query}` - Search accessible books in communities
+
+### Shares (`/shares`)
+- `POST /shares?userbookid={id}` - Request to borrow book
+- `GET /shares/borrower` - Get shares as borrower (non-archived)
+- `GET /shares/lender` - Get shares as lender (non-archived)
+- `GET /shares/borrower/archived` - Get archived borrows
+- `GET /shares/lender/archived` - Get archived lends
+- `PUT /shares/{id}/status` - Update share status (body: status enum)
+- `PUT /shares/{id}/return-date` - Set return date (lender only)
+- `POST /shares/{id}/archive` - Archive share (terminal states only)
+- `POST /shares/{id}/unarchive` - Unarchive share
+
+### Chat (`/shares/{shareId}/chat`)
+- `GET /shares/{shareId}/chat/messages?page={}&pageSize={}` - Get messages (paginated)
+- `POST /shares/{shareId}/chat/messages` - Send message (rate limited: 30 per 2 minutes)
+
+### Notifications (`/notifications`)
+- `GET /notifications` - Get all unread notifications
+- `PATCH /notifications/shares/{shareId}/read` - Mark share notifications read
+- `PATCH /notifications/shares/{shareId}/chat/read` - Mark chat notifications read
+
+### Communities (`/communities`)
+- `GET /communities` - List all communities
+- `GET /communities/{id}` - Get community details
+- `POST /communities?name={name}` - Create community (limit: 5 per user)
+- `DELETE /communities/{id}` - Delete community
+
+### Community Users (`/community-users`)
+- `POST /community-users/join/{communityId}` - Join community
+- `DELETE /community-users/leave/{communityId}` - Leave community
+- `GET /community-users/user/{userId}` - Get user's communities (with member counts)
+- `GET /community-users/community/{communityId}` - Get community members
+
+### SignalR Hub (`/chathub`)
+**Authentication:** JWT via query string `?access_token={token}`
+
+**Client → Server Methods:**
+- `JoinShareChat(shareId)` - Subscribe to share's messages
+- `LeaveShareChat(shareId)` - Unsubscribe from share
+- `SendMessage(shareId, content)` - Send chat message
+
+**Server → Client Events:**
+- `ReceiveMessage(messageDto)` - Broadcast new message to group
+- `JoinedChat(shareId)` - Join confirmation
+- `LeftChat(shareId)` - Leave confirmation
+- `Error(message)` - Error notification
+
+## API Base URLs
 
 ### Local Development (without Docker)
 - HTTP: `http://localhost:5155`
@@ -106,7 +269,7 @@ Replace `YOUR_LOCAL_PASSWORD` with your local PostgreSQL password and `YOUR_JWT_
 ### Docker Development
 - `http://localhost:3001`
 
-### Docker Production  
+### Docker Production
 - `http://localhost:3000`
 
 **Example API calls:**
@@ -120,6 +283,14 @@ curl http://localhost:3001/books
 # Docker production
 curl http://localhost:3000/books
 ```
+
+## Database Seeding
+
+The backend includes a DatabaseSeeder with test data for development:
+- **5 test users**: user-001 through user-005 (all password: "password")
+- **2 communities** with members
+- **20+ books** across various genres
+- **Sample shares** in different workflow states
 
 ## Configuration
 - **appsettings.json** - Production configuration
@@ -151,3 +322,24 @@ The application uses environment variables for database configuration to keep cr
 - **DB_CONNECTION_STRING** - Full connection string for the application
 
 For local development, copy `.env.example` to `.env` and customize the values as needed.
+
+## Related Projects
+
+### Mobile Application (BookSharingApp)
+**Location:** `/home/landonlaptop/code/BookSharingApp/`
+
+The React Native mobile application that consumes this API. Built with:
+- **React Native 0.81.4** with React 19.1.0
+- **Expo SDK 54** for development and builds
+- **TypeScript 5.9.2** with strict mode
+- **React Navigation 7.x** for navigation
+- **React Query 5.90.11** for server state management
+- **SignalR 9.0.6** for real-time chat
+
+**Key Features:**
+- Book search and discovery within communities
+- Personal library management with barcode scanning
+- Share request and lifecycle management
+- Real-time chat per share
+- Push notifications for share updates
+- Community management
