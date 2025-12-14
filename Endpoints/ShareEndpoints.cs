@@ -95,20 +95,6 @@ namespace BookSharingApp.Endpoints
                     // Update the status (validation happens in service layer)
                     await shareService.UpdateShareStatusAsync(id, request.Status, currentUserId);
 
-                    // Send system message for status change
-                    try
-                    {
-                        var statusMessage = GetStatusChangeMessage(request.Status);
-                        if (!string.IsNullOrEmpty(statusMessage))
-                        {
-                            await chatService.SendSystemMessageAsync(id, statusMessage);
-                        }
-                    }
-                    catch (Exception)
-                    {
-                        // Log error but don't fail the status update
-                    }
-
                     // Get updated share to return
                     var updatedShare = await shareService.GetShareAsync(id);
                     return Results.Ok(updatedShare);

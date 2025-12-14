@@ -12,6 +12,8 @@ namespace BookSharingApp.Tests.Helpers
         private static int _shareIdCounter = 1;
         private static int _shareUserStateIdCounter = 1;
         private static int _notificationIdCounter = 1;
+        private static int _chatThreadIdCounter = 1;
+        private static int _chatMessageIdCounter = 1;
 
         public static User CreateUser(
             string? id = null,
@@ -171,6 +173,52 @@ namespace BookSharingApp.Tests.Helpers
             };
         }
 
+        public static ChatThread CreateChatThread(
+            int? id = null,
+            DateTime? createdAt = null,
+            DateTime? lastActivity = null)
+        {
+            return new ChatThread
+            {
+                Id = id ?? _chatThreadIdCounter++,
+                CreatedAt = createdAt ?? DateTime.UtcNow,
+                LastActivity = lastActivity
+            };
+        }
+
+        public static ShareChatThread CreateShareChatThread(
+            int threadId,
+            int shareId)
+        {
+            return new ShareChatThread
+            {
+                ThreadId = threadId,
+                ShareId = shareId
+            };
+        }
+
+        public static ChatMessage CreateChatMessage(
+            int? id = null,
+            int? threadId = null,
+            string? senderId = null,
+            string? content = null,
+            DateTime? sentAt = null,
+            bool isSystemMessage = false)
+        {
+            var finalSenderId = senderId ?? "default-sender";
+            var finalThreadId = threadId ?? 1;
+
+            return new ChatMessage
+            {
+                Id = id ?? _chatMessageIdCounter++,
+                ThreadId = finalThreadId,
+                SenderId = finalSenderId,
+                Content = content ?? "Test message",
+                SentAt = sentAt ?? DateTime.UtcNow,
+                IsSystemMessage = isSystemMessage
+            };
+        }
+
         public static void ResetCounters()
         {
             _userIdCounter = 1;
@@ -180,6 +228,8 @@ namespace BookSharingApp.Tests.Helpers
             _shareIdCounter = 1;
             _shareUserStateIdCounter = 1;
             _notificationIdCounter = 1;
+            _chatThreadIdCounter = 1;
+            _chatMessageIdCounter = 1;
         }
     }
 }
