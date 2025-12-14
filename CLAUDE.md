@@ -32,7 +32,118 @@ BookSharingWebAPI is the backend for a **community-based book lending platform**
 - `dotnet run --launch-profile https` - Run with HTTPS (default)
 
 ### Testing
-- No test framework is currently configured in this project
+
+**Test Framework:** xUnit with EF Core In-Memory Database Provider + Moq + FluentAssertions
+
+**Running Tests:**
+- `dotnet test WebAPI.sln` - Run all unit tests
+- `dotnet test WebAPI.sln --filter "FullyQualifiedName~CreateShareAsync"` - Run specific test class
+- `dotnet test WebAPI.sln --logger "console;verbosity=detailed"` - Verbose test output
+
+**Test Project:** `BookSharingApp.Tests/` contains all unit tests organized by service method
+
+#### Testing Philosophy
+
+This project uses **xUnit with EF Core In-Memory Database Provider** for unit testing service layer logic. Tests execute real LINQ queries against an in-memory database rather than mocking DbContext.
+
+**Mock Strategy:**
+- **ApplicationDbContext:** EF Core In-Memory provider (real DbContext, fake database)
+- **INotificationService:** Mocked with Moq to verify notification creation calls
+- **ILogger<T>:** Mocked with Moq for dependency injection
+
+#### Test Organization
+
+Tests are organized by the component being tested:
+```
+BookSharingApp.Tests/
+├── Helpers/
+│   ├── DbContextHelper.cs          # Creates isolated in-memory DbContext instances
+│   └── TestDataBuilder.cs          # Fluent API for creating test entities
+├── Services/
+│   ├── CreateShareAsyncTests.cs    # ShareService.CreateShareAsync tests (10 tests)
+│   ├── ArchiveShareAsyncTests.cs   # ShareService.ArchiveShareAsync tests (7 tests)
+│   ├── UpdateShareDueDateAsyncTests.cs    # ShareService.UpdateShareDueDateAsync tests (4 tests)
+│   ├── UpdateShareStatusAsyncTests.cs     # ShareService.UpdateShareStatusAsync tests (4 tests)
+│   ├── UnarchiveShareAsyncTests.cs        # ShareService.UnarchiveShareAsync tests (3 tests)
+│   └── GetSharesTests.cs                   # ShareService Get methods tests (8 tests)
+└── Validators/
+    └── ShareStatusValidatorTests.cs        # ShareStatusValidator tests (30 tests)
+```
+
+**Total Test Coverage: 66 tests**
+- 36 ShareService tests (business logic with database interactions)
+- 30 ShareStatusValidator tests (pure validation logic)
+
+**Test Naming Convention:** `MethodName_Scenario_ExpectedBehavior`
+
+Examples:
+- **Service tests:** `CreateShareAsync_WithValidRequest_CreatesShareWithRequestedStatus`
+- **Service tests:** `CreateShareAsync_WhenBorrowingOwnBook_ThrowsInvalidOperationException`
+- **Service tests:** `ArchiveShareAsync_WhenShareInActiveState_ThrowsInvalidOperationException`
+- **Validator tests:** `ValidateStatusTransition_WhenBorrowerTriesToSetReady_ReturnsFailure`
+- **Validator tests:** `ValidateStatusTransition_FromRequestedToReady_ReturnsSuccess`
+
+#### Test Helper Utilities
+
+**DbContextHelper** (`BookSharingApp.Tests/Helpers/DbContextHelper.cs`)
+
+Provides factory methods for creating isolated in-memory database contexts:
+
+```csharp
+// Auto-isolated context (unique GUID database name per test)
+using var context = DbContextHelper.CreateInMemoryContext();
+
+// Named context (for sharing state across multiple context instances in same test)
+using var context = DbContextHelper.CreateInMemoryContext("my-test-db");
+```
+
+Each test gets a completely isolated database instance to prevent data leakage between tests.
+
+**TestDataBuilder** (`BookSharingApp.Tests/Helpers/TestDataBuilder.cs`)
+
+Fluent API for constructing test entities with sensible defaults:
+
+```csharp
+var user = TestDataBuilder.CreateUser(id: "user-1", firstName: "John");
+var book = TestDataBuilder.CreateBook(title: "The Great Gatsby", author: "F. Scott Fitzgerald");
+var userBook = TestDataBuilder.CreateUserBook(userId: user.Id, bookId: book.Id, status: UserBookStatus.Available);
+var community = TestDataBuilder.CreateCommunity(name: "Book Club");
+var share = TestDataBuilder.CreateShare(userBookId: userBook.Id, borrower: borrower.Id, status: ShareStatus.Requested);
+```
+#### Test Isolation Strategy
+
+Each test receives a **unique in-memory database** instance via GUID-based naming in `DbContextHelper.CreateInMemoryContext()`. This ensures:
+- No data leakage between tests
+- Tests can run in parallel safely
+- No cleanup required (garbage collected automatically)
+- Fast execution (in-memory only)
+
+#### Typical Test Pattern
+
+```csharp
+[Fact]
+public async Task CreateShareAsync_WithValidRequest_CreatesShare()
+{
+    // Arrange: Create isolated context and seed test data
+    using var context = DbContextHelper.CreateInMemoryContext();
+    var shareService = new ShareService(context, loggerMock.Object, notificationMock.Object);
+
+    var lender = TestDataBuilder.CreateUser(id: "lender-1");
+    var borrower = TestDataBuilder.CreateUser(id: "borrower-1");
+    context.Users.AddRange(lender, borrower);
+    await context.SaveChangesAsync();
+
+    // Act: Execute the method under test
+    var result = await shareService.CreateShareAsync(userBookId, borrower.Id);
+
+    // Assert: Verify behavior using FluentAssertions
+    result.Should().NotBeNull();
+    result.Status.Should().Be(ShareStatus.Requested);
+
+    var shareInDb = await context.Shares.FindAsync(result.Id);
+    shareInDb.Should().NotBeNull();
+}
+```
 
 ### Package Management
 - `dotnet restore` - Restore NuGet packages
@@ -84,16 +195,20 @@ Replace `YOUR_LOCAL_PASSWORD` with your local PostgreSQL password and `YOUR_JWT_
 ### Project Structure
 ```
 BookSharingWebAPI/
-├── Common/              # Shared constants and enums
-├── Data/                # EF Core DbContext and seeding
-├── Endpoints/           # Minimal API endpoint definitions
-├── Hubs/                # SignalR hubs (ChatHub)
-├── Middleware/          # Custom middleware (rate limiting)
-├── Migrations/          # EF Core migrations (~26 files)
-├── Models/              # Entity models and DTOs
-├── Services/            # Business logic layer
-├── Validators/          # Business rule validators
-└── wwwroot/images/      # Book cover thumbnails
+├── BookSharingApp.Tests/  # Unit test project (xUnit, 66 tests)
+│   ├── Helpers/           # Test utilities (DbContextHelper, TestDataBuilder)
+│   ├── Services/          # Service layer tests (36 tests)
+│   └── Validators/        # Validator tests (30 tests)
+├── Common/                # Shared constants and enums
+├── Data/                  # EF Core DbContext and seeding
+├── Endpoints/             # Minimal API endpoint definitions
+├── Hubs/                  # SignalR hubs (ChatHub)
+├── Middleware/            # Custom middleware (rate limiting)
+├── Migrations/            # EF Core migrations (~26 files)
+├── Models/                # Entity models and DTOs
+├── Services/              # Business logic layer
+├── Validators/            # Business rule validators
+└── wwwroot/images/        # Book cover thumbnails
 ```
 
 ### Key Components
