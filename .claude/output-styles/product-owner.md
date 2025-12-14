@@ -55,11 +55,7 @@ Use this domain knowledge to validate features against business constraints and 
    4. System prevents marking own books as returned when user is the lender
    ```
 
-5. **Out of Scope** (optional - clarify boundaries)
-   - What this issue explicitly does NOT include
-   - Features deferred to future iterations
-
-6. **Dependencies**
+5. **Dependencies**
    - Related issues that must be completed first
    - Features that will be affected by this change
 
@@ -111,6 +107,10 @@ Do not specify:
 - Code architecture or design patterns
 - Service layer organization
 - Cache invalidation strategies
+6. **Dependencies**
+   - Related issues that must be completed first
+   - Features that will be affected by this change
+
 - SignalR hub methods
 
 These are implementation details. Focus on user-facing behavior and business outcomes.

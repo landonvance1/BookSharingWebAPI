@@ -1,10 +1,7 @@
-using BookSharingApp.Data;
 using BookSharingApp.Models;
 using BookSharingApp.Common;
-using BookSharingApp.Validators;
 using BookSharingApp.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace BookSharingApp.Endpoints
@@ -95,19 +92,7 @@ namespace BookSharingApp.Endpoints
 
                 try
                 {
-                    // Get the share first to validate the status transition
-                    var share = await shareService.GetShareAsync(id);
-                    if (share is null)
-                        return Results.NotFound("Share not found");
-
-                    // Validate the status transition
-                    var validator = new ShareStatusValidator();
-                    var validationResult = validator.ValidateStatusTransition(share, request.Status, currentUserId);
-
-                    if (!validationResult.IsValid)
-                        return Results.BadRequest(validationResult.ErrorMessage);
-
-                    // Update the status
+                    // Update the status (validation happens in service layer)
                     await shareService.UpdateShareStatusAsync(id, request.Status, currentUserId);
 
                     // Send system message for status change
@@ -130,7 +115,10 @@ namespace BookSharingApp.Endpoints
                 }
                 catch (InvalidOperationException ex)
                 {
-                    return Results.NotFound(ex.Message);
+                    // Return appropriate HTTP status based on error
+                    return ex.Message == "Share not found"
+                        ? Results.NotFound(ex.Message)
+                        : Results.BadRequest(ex.Message);
                 }
             })
             .WithName("UpdateShareStatus")

@@ -1,6 +1,7 @@
 using BookSharingApp.Common;
 using BookSharingApp.Data;
 using BookSharingApp.Models;
+using BookSharingApp.Validators;
 using Microsoft.EntityFrameworkCore;
 
 namespace BookSharingApp.Services
@@ -155,6 +156,13 @@ namespace BookSharingApp.Services
 
             if (share is null)
                 throw new InvalidOperationException("Share not found");
+
+            // Validate the status transition
+            var validator = new ShareStatusValidator();
+            var validationResult = validator.ValidateStatusTransition(share, newStatus, updatedByUserId);
+
+            if (!validationResult.IsValid)
+                throw new InvalidOperationException(validationResult.ErrorMessage);
 
             // Update the status
             share.Status = newStatus;
