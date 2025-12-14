@@ -53,55 +53,10 @@ namespace BookSharingApp.Services
                 await _context.SaveChangesAsync();
 
                 _logger.LogInformation("Created chat thread {ThreadId} for share {ShareId}", thread.Id, shareId);
-
-                // Send welcome system message
-                await SendSystemMessageAsync(shareId, "Chat created! You can now coordinate pickup details and discuss the book.");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to create chat for share {ShareId}", shareId);
-                throw;
-            }
-        }
-
-        public async Task SendSystemMessageAsync(int shareId, string message)
-        {
-            try
-            {
-                var shareChatThread = await _context.ShareChatThreads
-                    .FirstOrDefaultAsync(sct => sct.ShareId == shareId);
-
-                if (shareChatThread == null)
-                {
-                    _logger.LogWarning("No chat thread found for share {ShareId}", shareId);
-                    return;
-                }
-
-                var systemMessage = new ChatMessage
-                {
-                    ThreadId = shareChatThread.ThreadId,
-                    SenderId = "system", // Use a special system user ID
-                    Content = message,
-                    SentAt = DateTime.UtcNow,
-                    IsSystemMessage = true
-                };
-
-                _context.ChatMessages.Add(systemMessage);
-
-                // Update thread last activity
-                var thread = await _context.ChatThreads.FindAsync(shareChatThread.ThreadId);
-                if (thread != null)
-                {
-                    thread.LastActivity = DateTime.UtcNow;
-                }
-
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation("Sent system message to share {ShareId} chat", shareId);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to send system message to share {ShareId}", shareId);
                 throw;
             }
         }
@@ -142,13 +97,6 @@ namespace BookSharingApp.Services
 
             return await _context.ChatMessages
                 .CountAsync(m => m.ThreadId == shareChatThread.ThreadId);
-        }
-
-        public async Task<ChatMessage?> GetMessageAsync(int messageId)
-        {
-            return await _context.ChatMessages
-                .Include(m => m.Sender)
-                .FirstOrDefaultAsync(m => m.Id == messageId);
         }
 
         public async Task<ChatMessage> SendMessageAsync(int shareId, string senderId, string content)
@@ -198,18 +146,6 @@ namespace BookSharingApp.Services
                 senderId);
 
             return message;
-        }
-
-        public async Task DeleteMessageAsync(int messageId)
-        {
-            var message = await _context.ChatMessages.FindAsync(messageId);
-            if (message == null)
-                throw new InvalidOperationException("Message not found");
-
-            _context.ChatMessages.Remove(message);
-            await _context.SaveChangesAsync();
-
-            _logger.LogInformation("Deleted message {MessageId}", messageId);
         }
     }
 }
