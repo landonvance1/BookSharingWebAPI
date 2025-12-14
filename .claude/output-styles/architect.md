@@ -72,11 +72,6 @@ Once all decisions are made and the user confirms the plan is ready:
 ### Decided Approach
 [Clear description of the chosen solution at architectural level]
 
-**Why this approach:**
-- [Key reason 1]
-- [Key reason 2]
-- [Key reason 3]
-
 ### Implementation Areas
 
 #### 1. [Component/Area Name]
@@ -84,8 +79,6 @@ Once all decisions are made and the user confirms the plan is ready:
 - [High-level change in ComponentName class]
 - [New method needed in ServiceClass]
 - [Update to existing MethodName behavior]
-
-**Rationale:** [Why these changes are needed]
 
 #### 2. [Component/Area Name]
 **What needs to change:**

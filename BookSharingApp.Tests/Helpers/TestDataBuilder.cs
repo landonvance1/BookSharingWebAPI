@@ -11,6 +11,7 @@ namespace BookSharingApp.Tests.Helpers
         private static int _communityIdCounter = 1;
         private static int _shareIdCounter = 1;
         private static int _shareUserStateIdCounter = 1;
+        private static int _notificationIdCounter = 1;
 
         public static User CreateUser(
             string? id = null,
@@ -144,6 +145,32 @@ namespace BookSharingApp.Tests.Helpers
             };
         }
 
+        public static Notification CreateNotification(
+            int? id = null,
+            string? userId = null,
+            string? notificationType = null,
+            string? message = null,
+            int? shareId = null,
+            string? createdByUserId = null,
+            DateTime? createdAt = null,
+            DateTime? readAt = null)
+        {
+            var finalUserId = userId ?? "default-user";
+            var finalCreatedByUserId = createdByUserId ?? "default-creator";
+
+            return new Notification
+            {
+                Id = id ?? _notificationIdCounter++,
+                UserId = finalUserId,
+                NotificationType = notificationType ?? NotificationType.ShareStatusChanged,
+                Message = message ?? "Test notification message",
+                ShareId = shareId,
+                CreatedByUserId = finalCreatedByUserId,
+                CreatedAt = createdAt ?? DateTime.UtcNow,
+                ReadAt = readAt
+            };
+        }
+
         public static void ResetCounters()
         {
             _userIdCounter = 1;
@@ -152,6 +179,7 @@ namespace BookSharingApp.Tests.Helpers
             _communityIdCounter = 1;
             _shareIdCounter = 1;
             _shareUserStateIdCounter = 1;
+            _notificationIdCounter = 1;
         }
     }
 }
