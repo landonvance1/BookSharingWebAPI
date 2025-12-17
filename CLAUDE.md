@@ -40,7 +40,7 @@ BookSharingWebAPI is the backend for a **community-based book lending platform**
 - `dotnet test WebAPI.sln --filter "FullyQualifiedName~CreateShareAsync"` - Run specific test class
 - `dotnet test WebAPI.sln --logger "console;verbosity=detailed"` - Verbose test output
 
-**Test Project:** `BookSharingApp.Tests/` contains all unit tests organized by service method
+**Test Project:** `BookSharingApp.Tests/` contains all unit tests organized by service
 
 #### Testing Philosophy
 
@@ -53,33 +53,51 @@ This project uses **xUnit with EF Core In-Memory Database Provider** for unit te
 
 #### Test Organization
 
-Tests are organized by the component being tested:
+Tests are organized using a **single file per service/class** pattern with nested test classes for each method:
+
 ```
 BookSharingApp.Tests/
 ├── Helpers/
 │   ├── DbContextHelper.cs          # Creates isolated in-memory DbContext instances
 │   └── TestDataBuilder.cs          # Fluent API for creating test entities
 ├── Services/
-│   ├── CreateShareAsyncTests.cs    # ShareService.CreateShareAsync tests (10 tests)
-│   ├── ArchiveShareAsyncTests.cs   # ShareService.ArchiveShareAsync tests (7 tests)
-│   ├── UpdateShareDueDateAsyncTests.cs    # ShareService.UpdateShareDueDateAsync tests (4 tests)
-│   ├── UpdateShareStatusAsyncTests.cs     # ShareService.UpdateShareStatusAsync tests (4 tests)
-│   ├── UnarchiveShareAsyncTests.cs        # ShareService.UnarchiveShareAsync tests (3 tests)
-│   └── GetSharesTests.cs                   # ShareService Get methods tests (8 tests)
+│   ├── ChatServiceTests.cs         # All ChatService tests (18 tests)
+│   │   ├── CreateShareChatAsyncTests      # Nested class (3 tests)
+│   │   ├── SendMessageAsyncTests          # Nested class (8 tests)
+│   │   ├── GetMessageCountAsyncTests      # Nested class (2 tests)
+│   │   └── GetMessageThreadAsyncTests     # Nested class (5 tests)
+│   ├── NotificationServiceTests.cs # All NotificationService tests (41 tests)
+│   │   ├── GetUnreadNotificationsAsyncTests      # Nested class (10 tests)
+│   │   ├── CreateShareNotificationAsyncTests     # Nested class (11 tests)
+│   │   ├── MarkShareNotificationsAsReadAsyncTests     # Nested class (10 tests)
+│   │   └── MarkShareChatNotificationsAsReadAsyncTests # Nested class (10 tests)
+│   └── ShareServiceTests.cs        # All ShareService tests (36 tests)
+│       ├── CreateShareAsyncTests          # Nested class (10 tests)
+│       ├── ArchiveShareAsyncTests         # Nested class (7 tests)
+│       ├── UpdateShareDueDateAsyncTests   # Nested class (4 tests)
+│       ├── UpdateShareStatusAsyncTests    # Nested class (4 tests)
+│       ├── UnarchiveShareAsyncTests       # Nested class (3 tests)
+│       └── GetSharesTests                 # Nested class (8 tests)
 └── Validators/
     └── ShareStatusValidatorTests.cs        # ShareStatusValidator tests (30 tests)
 ```
 
-**Total Test Coverage: 66 tests**
-- 36 ShareService tests (business logic with database interactions)
+**Total Test Coverage: 125 tests**
+- 95 Service tests (ChatService: 18, NotificationService: 41, ShareService: 36)
 - 30 ShareStatusValidator tests (pure validation logic)
+
+**Test File Structure Pattern:**
+Each service test file contains:
+1. **Base class** with shared mock setup (`ServiceNameTestBase : IDisposable`)
+2. **Nested classes** for each method being tested (inherit from base class)
+3. **Protected properties** for mocks (accessible to all nested test classes)
 
 **Test Naming Convention:** `MethodName_Scenario_ExpectedBehavior`
 
 Examples:
 - **Service tests:** `CreateShareAsync_WithValidRequest_CreatesShareWithRequestedStatus`
 - **Service tests:** `CreateShareAsync_WhenBorrowingOwnBook_ThrowsInvalidOperationException`
-- **Service tests:** `ArchiveShareAsync_WhenShareInActiveState_ThrowsInvalidOperationException`
+- **Service tests:** `SendMessageAsync_WithValidMessage_CreatesMessageAndNotification`
 - **Validator tests:** `ValidateStatusTransition_WhenBorrowerTriesToSetReady_ReturnsFailure`
 - **Validator tests:** `ValidateStatusTransition_FromRequestedToReady_ReturnsSuccess`
 
@@ -118,32 +136,6 @@ Each test receives a **unique in-memory database** instance via GUID-based namin
 - No cleanup required (garbage collected automatically)
 - Fast execution (in-memory only)
 
-#### Typical Test Pattern
-
-```csharp
-[Fact]
-public async Task CreateShareAsync_WithValidRequest_CreatesShare()
-{
-    // Arrange: Create isolated context and seed test data
-    using var context = DbContextHelper.CreateInMemoryContext();
-    var shareService = new ShareService(context, loggerMock.Object, notificationMock.Object);
-
-    var lender = TestDataBuilder.CreateUser(id: "lender-1");
-    var borrower = TestDataBuilder.CreateUser(id: "borrower-1");
-    context.Users.AddRange(lender, borrower);
-    await context.SaveChangesAsync();
-
-    // Act: Execute the method under test
-    var result = await shareService.CreateShareAsync(userBookId, borrower.Id);
-
-    // Assert: Verify behavior using FluentAssertions
-    result.Should().NotBeNull();
-    result.Status.Should().Be(ShareStatus.Requested);
-
-    var shareInDb = await context.Shares.FindAsync(result.Id);
-    shareInDb.Should().NotBeNull();
-}
-```
 
 ### Package Management
 - `dotnet restore` - Restore NuGet packages
@@ -195,9 +187,9 @@ Replace `YOUR_LOCAL_PASSWORD` with your local PostgreSQL password and `YOUR_JWT_
 ### Project Structure
 ```
 BookSharingWebAPI/
-├── BookSharingApp.Tests/  # Unit test project (xUnit, 66 tests)
+├── BookSharingApp.Tests/  # Unit test project (xUnit, 125 tests)
 │   ├── Helpers/           # Test utilities (DbContextHelper, TestDataBuilder)
-│   ├── Services/          # Service layer tests (36 tests)
+│   ├── Services/          # Service layer tests (95 tests across 3 files)
 │   └── Validators/        # Validator tests (30 tests)
 ├── Common/                # Shared constants and enums
 ├── Data/                  # EF Core DbContext and seeding
