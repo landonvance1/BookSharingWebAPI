@@ -45,11 +45,11 @@ namespace BookSharingApp.Services
                         return new RateLimitEntry(existing.RemainingTokens - tokens, existing.ResetTime);
                     }
 
-                    // Not enough tokens
-                    return existing;
+                    // Not enough tokens - use -1 as sentinel for failed consumption
+                    return new RateLimitEntry(-1, existing.ResetTime);
                 });
 
-            return entry.RemainingTokens > 0;
+            return entry.RemainingTokens >= 0;
         }
 
         private void CleanupExpiredEntries(object? state)
