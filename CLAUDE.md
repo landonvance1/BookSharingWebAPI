@@ -71,19 +71,24 @@ BookSharingApp.Tests/
 │   │   ├── CreateShareNotificationAsyncTests     # Nested class (11 tests)
 │   │   ├── MarkShareNotificationsAsReadAsyncTests     # Nested class (10 tests)
 │   │   └── MarkShareChatNotificationsAsReadAsyncTests # Nested class (10 tests)
-│   └── ShareServiceTests.cs        # All ShareService tests (36 tests)
-│       ├── CreateShareAsyncTests          # Nested class (10 tests)
-│       ├── ArchiveShareAsyncTests         # Nested class (7 tests)
-│       ├── UpdateShareDueDateAsyncTests   # Nested class (4 tests)
-│       ├── UpdateShareStatusAsyncTests    # Nested class (4 tests)
-│       ├── UnarchiveShareAsyncTests       # Nested class (3 tests)
-│       └── GetSharesTests                 # Nested class (8 tests)
+│   ├── ShareServiceTests.cs        # All ShareService tests (36 tests)
+│   │   ├── CreateShareAsyncTests          # Nested class (10 tests)
+│   │   ├── ArchiveShareAsyncTests         # Nested class (7 tests)
+│   │   ├── UpdateShareDueDateAsyncTests   # Nested class (4 tests)
+│   │   ├── UpdateShareStatusAsyncTests    # Nested class (4 tests)
+│   │   ├── UnarchiveShareAsyncTests       # Nested class (3 tests)
+│   │   └── GetSharesTests                 # Nested class (8 tests)
+│   └── TokenServiceTests.cs        # All TokenService tests (21 tests)
+│       ├── GenerateAccessTokenTests       # Nested class (6 tests)
+│       ├── GenerateRefreshTokenTests      # Nested class (4 tests)
+│       ├── GetPrincipalFromExpiredTokenTests # Nested class (7 tests)
+│       └── EdgeCaseAndSecurityTests       # Nested class (4 tests)
 └── Validators/
     └── ShareStatusValidatorTests.cs        # ShareStatusValidator tests (30 tests)
 ```
 
-**Total Test Coverage: 125 tests**
-- 95 Service tests (ChatService: 18, NotificationService: 41, ShareService: 36)
+**Total Test Coverage: 146 tests**
+- 116 Service tests (ChatService: 18, NotificationService: 41, ShareService: 36, TokenService: 21)
 - 30 ShareStatusValidator tests (pure validation logic)
 
 **Test File Structure Pattern:**
