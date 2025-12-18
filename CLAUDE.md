@@ -59,37 +59,19 @@ Tests are organized using a **single file per service/class** pattern with neste
 BookSharingApp.Tests/
 ├── Helpers/
 │   ├── DbContextHelper.cs          # Creates isolated in-memory DbContext instances
-│   └── TestDataBuilder.cs          # Fluent API for creating test entities
+│   ├── TestDataBuilder.cs          # Fluent API for creating test entities
+│   └── MockHttpMessageHandlerHelper.cs  # Helper for mocking HTTP responses
 ├── Services/
-│   ├── ChatServiceTests.cs         # All ChatService tests (18 tests)
-│   │   ├── CreateShareChatAsyncTests      # Nested class (3 tests)
-│   │   ├── SendMessageAsyncTests          # Nested class (8 tests)
-│   │   ├── GetMessageCountAsyncTests      # Nested class (2 tests)
-│   │   └── GetMessageThreadAsyncTests     # Nested class (5 tests)
-│   ├── NotificationServiceTests.cs # All NotificationService tests (41 tests)
-│   │   ├── GetUnreadNotificationsAsyncTests      # Nested class (10 tests)
-│   │   ├── CreateShareNotificationAsyncTests     # Nested class (11 tests)
-│   │   ├── MarkShareNotificationsAsReadAsyncTests     # Nested class (10 tests)
-│   │   └── MarkShareChatNotificationsAsReadAsyncTests # Nested class (10 tests)
-│   ├── ShareServiceTests.cs        # All ShareService tests (36 tests)
-│   │   ├── CreateShareAsyncTests          # Nested class (10 tests)
-│   │   ├── ArchiveShareAsyncTests         # Nested class (7 tests)
-│   │   ├── UpdateShareDueDateAsyncTests   # Nested class (4 tests)
-│   │   ├── UpdateShareStatusAsyncTests    # Nested class (4 tests)
-│   │   ├── UnarchiveShareAsyncTests       # Nested class (3 tests)
-│   │   └── GetSharesTests                 # Nested class (8 tests)
-│   └── TokenServiceTests.cs        # All TokenService tests (21 tests)
-│       ├── GenerateAccessTokenTests       # Nested class (6 tests)
-│       ├── GenerateRefreshTokenTests      # Nested class (4 tests)
-│       ├── GetPrincipalFromExpiredTokenTests # Nested class (7 tests)
-│       └── EdgeCaseAndSecurityTests       # Nested class (4 tests)
+│   ├── ChatServiceTests.cs
+│   ├── NotificationServiceTests.cs
+│   ├── ShareServiceTests.cs
+│   ├── TokenServiceTests.cs
+│   └── OpenLibraryServiceTests.cs
 └── Validators/
-    └── ShareStatusValidatorTests.cs        # ShareStatusValidator tests (30 tests)
+    └── ShareStatusValidatorTests.cs
 ```
 
-**Total Test Coverage: 146 tests**
-- 116 Service tests (ChatService: 18, NotificationService: 41, ShareService: 36, TokenService: 21)
-- 30 ShareStatusValidator tests (pure validation logic)
+**Current test coverage:** Run `dotnet test WebAPI.sln` to see the latest test counts.
 
 **Test File Structure Pattern:**
 Each service test file contains:
@@ -192,10 +174,10 @@ Replace `YOUR_LOCAL_PASSWORD` with your local PostgreSQL password and `YOUR_JWT_
 ### Project Structure
 ```
 BookSharingWebAPI/
-├── BookSharingApp.Tests/  # Unit test project (xUnit, 125 tests)
-│   ├── Helpers/           # Test utilities (DbContextHelper, TestDataBuilder)
-│   ├── Services/          # Service layer tests (95 tests across 3 files)
-│   └── Validators/        # Validator tests (30 tests)
+├── BookSharingApp.Tests/  # Unit test project (xUnit)
+│   ├── Helpers/           # Test utilities
+│   ├── Services/          # Service layer tests
+│   └── Validators/        # Validator tests
 ├── Common/                # Shared constants and enums
 ├── Data/                  # EF Core DbContext and seeding
 ├── Endpoints/             # Minimal API endpoint definitions

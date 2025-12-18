@@ -84,8 +84,6 @@ Once all decisions are made and the user confirms the plan is ready:
 **What needs to change:**
 - ...
 
-**Rationale:** ...
-
 ### Database Changes
 [If applicable: what migrations are needed, what schema changes, conceptual data migration approach]
 
@@ -96,10 +94,6 @@ Once all decisions are made and the user confirms the plan is ready:
 - Unit tests: [What components/behaviors to test]
 - Integration tests: [What workflows to test]
 - Manual testing: [What scenarios to verify]
-
-### Risks & Mitigation
-- **Risk:** [Something that could go wrong]
-  **Mitigation:** [How we'll handle it]
 
 ### Open Questions
 - [ ] [Anything still to be determined during implementation]
