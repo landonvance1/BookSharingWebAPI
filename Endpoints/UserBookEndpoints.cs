@@ -26,10 +26,10 @@ namespace BookSharingApp.Endpoints
             .WithName("GetUserBooks")
             .WithOpenApi();
 
-            userBooks.MapPut("/{userBookId:int}/status", async (int userBookId, [FromBody] int status, HttpContext httpContext, ApplicationDbContext context) => 
+            userBooks.MapPut("/{userBookId:int}/status", async (int userBookId, [FromBody] int status, HttpContext httpContext, ApplicationDbContext context) =>
             {
                 if (!Enum.IsDefined(typeof(UserBookStatus), status))
-                    return Results.BadRequest("Status must be Available (1), OnLoan (2), or Unavailable (3)");
+                    return Results.BadRequest("Status must be Available (1) or Unavailable (2)");
                 
                 var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
                 

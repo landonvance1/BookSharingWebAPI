@@ -359,6 +359,331 @@ namespace BookSharingApp.Tests.Services
             }
 
             [Fact]
+            public async Task CreateShareAsync_WhenBookHasActiveShareReady_ThrowsInvalidOperationException()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var shareService = new ShareService(context, LoggerMock.Object, NotificationServiceMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1");
+                var borrower1 = TestDataBuilder.CreateUser(id: "borrower-1");
+                var borrower2 = TestDataBuilder.CreateUser(id: "borrower-2");
+                var book = TestDataBuilder.CreateBook();
+                var community = TestDataBuilder.CreateCommunity();
+
+                context.Users.AddRange(lender, borrower1, borrower2);
+                context.Books.Add(book);
+                context.Communities.Add(community);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    status: UserBookStatus.Available,
+                    user: lender,
+                    book: book
+                );
+                context.UserBooks.Add(userBook);
+
+                context.CommunityUsers.AddRange(
+                    TestDataBuilder.CreateCommunityUser(community.Id, lender.Id),
+                    TestDataBuilder.CreateCommunityUser(community.Id, borrower1.Id),
+                    TestDataBuilder.CreateCommunityUser(community.Id, borrower2.Id)
+                );
+                await context.SaveChangesAsync();
+
+                // Create an existing active share in Ready state
+                var existingShare = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower1.Id,
+                    status: ShareStatus.Ready,
+                    userBook: userBook,
+                    borrowerUser: borrower1
+                );
+                context.Shares.Add(existingShare);
+                await context.SaveChangesAsync();
+
+                // Act - Different user tries to request the same book
+                var act = async () => await shareService.CreateShareAsync(userBook.Id, borrower2.Id);
+
+                // Assert
+                await act.Should().ThrowAsync<InvalidOperationException>()
+                    .WithMessage("This book is currently out on loan");
+            }
+
+            [Fact]
+            public async Task CreateShareAsync_WhenBookHasActiveSharePickedUp_ThrowsInvalidOperationException()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var shareService = new ShareService(context, LoggerMock.Object, NotificationServiceMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1");
+                var borrower1 = TestDataBuilder.CreateUser(id: "borrower-1");
+                var borrower2 = TestDataBuilder.CreateUser(id: "borrower-2");
+                var book = TestDataBuilder.CreateBook();
+                var community = TestDataBuilder.CreateCommunity();
+
+                context.Users.AddRange(lender, borrower1, borrower2);
+                context.Books.Add(book);
+                context.Communities.Add(community);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    status: UserBookStatus.Available,
+                    user: lender,
+                    book: book
+                );
+                context.UserBooks.Add(userBook);
+
+                context.CommunityUsers.AddRange(
+                    TestDataBuilder.CreateCommunityUser(community.Id, lender.Id),
+                    TestDataBuilder.CreateCommunityUser(community.Id, borrower1.Id),
+                    TestDataBuilder.CreateCommunityUser(community.Id, borrower2.Id)
+                );
+                await context.SaveChangesAsync();
+
+                // Create an existing active share in PickedUp state
+                var existingShare = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower1.Id,
+                    status: ShareStatus.PickedUp,
+                    userBook: userBook,
+                    borrowerUser: borrower1
+                );
+                context.Shares.Add(existingShare);
+                await context.SaveChangesAsync();
+
+                // Act - Different user tries to request the same book
+                var act = async () => await shareService.CreateShareAsync(userBook.Id, borrower2.Id);
+
+                // Assert
+                await act.Should().ThrowAsync<InvalidOperationException>()
+                    .WithMessage("This book is currently out on loan");
+            }
+
+            [Fact]
+            public async Task CreateShareAsync_WhenBookHasActiveShareReturned_ThrowsInvalidOperationException()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var shareService = new ShareService(context, LoggerMock.Object, NotificationServiceMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1");
+                var borrower1 = TestDataBuilder.CreateUser(id: "borrower-1");
+                var borrower2 = TestDataBuilder.CreateUser(id: "borrower-2");
+                var book = TestDataBuilder.CreateBook();
+                var community = TestDataBuilder.CreateCommunity();
+
+                context.Users.AddRange(lender, borrower1, borrower2);
+                context.Books.Add(book);
+                context.Communities.Add(community);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    status: UserBookStatus.Available,
+                    user: lender,
+                    book: book
+                );
+                context.UserBooks.Add(userBook);
+
+                context.CommunityUsers.AddRange(
+                    TestDataBuilder.CreateCommunityUser(community.Id, lender.Id),
+                    TestDataBuilder.CreateCommunityUser(community.Id, borrower1.Id),
+                    TestDataBuilder.CreateCommunityUser(community.Id, borrower2.Id)
+                );
+                await context.SaveChangesAsync();
+
+                // Create an existing active share in Returned state
+                var existingShare = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower1.Id,
+                    status: ShareStatus.Returned,
+                    userBook: userBook,
+                    borrowerUser: borrower1
+                );
+                context.Shares.Add(existingShare);
+                await context.SaveChangesAsync();
+
+                // Act - Different user tries to request the same book
+                var act = async () => await shareService.CreateShareAsync(userBook.Id, borrower2.Id);
+
+                // Assert
+                await act.Should().ThrowAsync<InvalidOperationException>()
+                    .WithMessage("This book is currently out on loan");
+            }
+
+            [Fact]
+            public async Task CreateShareAsync_WhenBookHasRequestedShare_AllowsNewRequest()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var shareService = new ShareService(context, LoggerMock.Object, NotificationServiceMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1");
+                var borrower1 = TestDataBuilder.CreateUser(id: "borrower-1");
+                var borrower2 = TestDataBuilder.CreateUser(id: "borrower-2");
+                var book = TestDataBuilder.CreateBook();
+                var community = TestDataBuilder.CreateCommunity();
+
+                context.Users.AddRange(lender, borrower1, borrower2);
+                context.Books.Add(book);
+                context.Communities.Add(community);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    status: UserBookStatus.Available,
+                    user: lender,
+                    book: book
+                );
+                context.UserBooks.Add(userBook);
+
+                context.CommunityUsers.AddRange(
+                    TestDataBuilder.CreateCommunityUser(community.Id, lender.Id),
+                    TestDataBuilder.CreateCommunityUser(community.Id, borrower1.Id),
+                    TestDataBuilder.CreateCommunityUser(community.Id, borrower2.Id)
+                );
+                await context.SaveChangesAsync();
+
+                // Create an existing share in Requested state (not yet approved)
+                var existingShare = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower1.Id,
+                    status: ShareStatus.Requested,
+                    userBook: userBook,
+                    borrowerUser: borrower1
+                );
+                context.Shares.Add(existingShare);
+                await context.SaveChangesAsync();
+
+                // Act - Different user tries to request the same book (should succeed since not approved yet)
+                var result = await shareService.CreateShareAsync(userBook.Id, borrower2.Id);
+
+                // Assert
+                result.Should().NotBeNull();
+                result.Status.Should().Be(ShareStatus.Requested);
+                result.Borrower.Should().Be(borrower2.Id);
+            }
+
+            [Fact]
+            public async Task CreateShareAsync_WhenBookHasTerminalShareHomeSafe_AllowsNewRequestByDifferentUser()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var shareService = new ShareService(context, LoggerMock.Object, NotificationServiceMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1");
+                var borrower1 = TestDataBuilder.CreateUser(id: "borrower-1");
+                var borrower2 = TestDataBuilder.CreateUser(id: "borrower-2");
+                var book = TestDataBuilder.CreateBook();
+                var community = TestDataBuilder.CreateCommunity();
+
+                context.Users.AddRange(lender, borrower1, borrower2);
+                context.Books.Add(book);
+                context.Communities.Add(community);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    status: UserBookStatus.Available,
+                    user: lender,
+                    book: book
+                );
+                context.UserBooks.Add(userBook);
+
+                context.CommunityUsers.AddRange(
+                    TestDataBuilder.CreateCommunityUser(community.Id, lender.Id),
+                    TestDataBuilder.CreateCommunityUser(community.Id, borrower1.Id),
+                    TestDataBuilder.CreateCommunityUser(community.Id, borrower2.Id)
+                );
+                await context.SaveChangesAsync();
+
+                // Create a previous share in terminal state HomeSafe (book was borrowed and returned)
+                var previousShare = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower1.Id,
+                    status: ShareStatus.HomeSafe,
+                    userBook: userBook,
+                    borrowerUser: borrower1
+                );
+                context.Shares.Add(previousShare);
+                await context.SaveChangesAsync();
+
+                // Act - Different user tries to request the same book (should succeed since previous transaction completed)
+                var result = await shareService.CreateShareAsync(userBook.Id, borrower2.Id);
+
+                // Assert
+                result.Should().NotBeNull();
+                result.Status.Should().Be(ShareStatus.Requested);
+                result.Borrower.Should().Be(borrower2.Id);
+            }
+
+            [Fact]
+            public async Task CreateShareAsync_WhenSameUserHasTerminalShareHomeSafe_AllowsNewRequest()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var shareService = new ShareService(context, LoggerMock.Object, NotificationServiceMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1");
+                var borrower = TestDataBuilder.CreateUser(id: "borrower-1");
+                var book = TestDataBuilder.CreateBook();
+                var community = TestDataBuilder.CreateCommunity();
+
+                context.Users.AddRange(lender, borrower);
+                context.Books.Add(book);
+                context.Communities.Add(community);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    status: UserBookStatus.Available,
+                    user: lender,
+                    book: book
+                );
+                context.UserBooks.Add(userBook);
+
+                context.CommunityUsers.AddRange(
+                    TestDataBuilder.CreateCommunityUser(community.Id, lender.Id),
+                    TestDataBuilder.CreateCommunityUser(community.Id, borrower.Id)
+                );
+                await context.SaveChangesAsync();
+
+                // Create a previous share in terminal state HomeSafe - same borrower borrowed and returned the book
+                var previousShare = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower.Id,
+                    status: ShareStatus.HomeSafe,
+                    userBook: userBook,
+                    borrowerUser: borrower
+                );
+                context.Shares.Add(previousShare);
+                await context.SaveChangesAsync();
+
+                // Act - Same borrower requests the book again (should succeed - users can borrow the same book multiple times)
+                var result = await shareService.CreateShareAsync(userBook.Id, borrower.Id);
+
+                // Assert
+                result.Should().NotBeNull();
+                result.Status.Should().Be(ShareStatus.Requested);
+                result.Borrower.Should().Be(borrower.Id);
+
+                // Verify there are now 2 shares for this book by this borrower
+                var allShares = await context.Shares
+                    .Where(s => s.UserBookId == userBook.Id && s.Borrower == borrower.Id)
+                    .ToListAsync();
+                allShares.Should().HaveCount(2);
+            }
+
+            [Fact]
             public async Task CreateShareAsync_WithMultipleSharedCommunities_CreatesShare()
             {
                 // Arrange
