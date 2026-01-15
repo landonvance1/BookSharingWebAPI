@@ -16,6 +16,7 @@ namespace BookSharingApp.Services
         Task<Share> CreateShareAsync(int userBookId, string borrowerId);
         Task UpdateShareStatusAsync(int shareId, ShareStatus newStatus, string updatedByUserId);
         Task UpdateShareDueDateAsync(int shareId, DateTime newDueDate, string updatedByUserId);
+        Task RaiseDisputeAsync(int shareId, string raisedByUserId);
         Task ArchiveShareAsync(int shareId, string archivedByUserId);
         Task UnarchiveShareAsync(int shareId, string unarchivedByUserId);
     }

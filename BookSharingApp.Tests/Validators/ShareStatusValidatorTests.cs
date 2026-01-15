@@ -629,84 +629,12 @@ namespace BookSharingApp.Tests.Validators
             result.ErrorMessage.Should().Be("Invalid status transition from Declined to Ready");
         }
 
-        [Fact]
-        public void ValidateStatusTransition_FromDisputedToAnyStatus_ReturnsFailure()
-        {
-            // Arrange
-            var lender = TestDataBuilder.CreateUser(id: "lender-1");
-            var borrower = TestDataBuilder.CreateUser(id: "borrower-1");
-            var book = TestDataBuilder.CreateBook();
-            var userBook = TestDataBuilder.CreateUserBook(userId: lender.Id, bookId: book.Id, user: lender, book: book);
-            var share = TestDataBuilder.CreateShare(
-                userBookId: userBook.Id,
-                borrower: borrower.Id,
-                status: ShareStatus.Disputed,
-                userBook: userBook,
-                borrowerUser: borrower
-            );
-
-            // Act
-            var result = _validator.ValidateStatusTransition(share, ShareStatus.HomeSafe, lender.Id);
-
-            // Assert
-            result.IsValid.Should().BeFalse();
-            result.ErrorMessage.Should().Be("Invalid status transition from Disputed to HomeSafe");
-        }
-
         #endregion
 
-        #region Disputed Status Special Cases
+        #region Disputed Status Tests
 
         [Fact]
-        public void ValidateStatusTransition_ToDisputedFromRequested_ReturnsSuccess()
-        {
-            // Arrange
-            var lender = TestDataBuilder.CreateUser(id: "lender-1");
-            var borrower = TestDataBuilder.CreateUser(id: "borrower-1");
-            var book = TestDataBuilder.CreateBook();
-            var userBook = TestDataBuilder.CreateUserBook(userId: lender.Id, bookId: book.Id, user: lender, book: book);
-            var share = TestDataBuilder.CreateShare(
-                userBookId: userBook.Id,
-                borrower: borrower.Id,
-                status: ShareStatus.Requested,
-                userBook: userBook,
-                borrowerUser: borrower
-            );
-
-            // Act - Either party can dispute
-            var resultLender = _validator.ValidateStatusTransition(share, ShareStatus.Disputed, lender.Id);
-            var resultBorrower = _validator.ValidateStatusTransition(share, ShareStatus.Disputed, borrower.Id);
-
-            // Assert
-            resultLender.IsValid.Should().BeTrue();
-            resultBorrower.IsValid.Should().BeTrue();
-        }
-
-        [Fact]
-        public void ValidateStatusTransition_ToDisputedFromReady_ReturnsSuccess()
-        {
-            // Arrange
-            var lender = TestDataBuilder.CreateUser(id: "lender-1");
-            var borrower = TestDataBuilder.CreateUser(id: "borrower-1");
-            var book = TestDataBuilder.CreateBook();
-            var userBook = TestDataBuilder.CreateUserBook(userId: lender.Id, bookId: book.Id, user: lender, book: book);
-            var share = TestDataBuilder.CreateShare(
-                userBookId: userBook.Id,
-                borrower: borrower.Id,
-                status: ShareStatus.Ready,
-                userBook: userBook,
-                borrowerUser: borrower
-            );
-
-            // Act
-            var result = _validator.ValidateStatusTransition(share, ShareStatus.Disputed, borrower.Id);
-
-            // Assert
-            result.IsValid.Should().BeTrue();
-        }
-
-        [Fact]
-        public void ValidateStatusTransition_ToDisputedFromPickedUp_ReturnsSuccess()
+        public void ValidateStatusTransition_WhenShareIsDisputed_ReturnsFailure()
         {
             // Arrange
             var lender = TestDataBuilder.CreateUser(id: "lender-1");
@@ -717,19 +645,22 @@ namespace BookSharingApp.Tests.Validators
                 userBookId: userBook.Id,
                 borrower: borrower.Id,
                 status: ShareStatus.PickedUp,
+                isDisputed: true,
+                disputedBy: lender.Id,
                 userBook: userBook,
                 borrowerUser: borrower
             );
 
             // Act
-            var result = _validator.ValidateStatusTransition(share, ShareStatus.Disputed, lender.Id);
+            var result = _validator.ValidateStatusTransition(share, ShareStatus.Returned, borrower.Id);
 
             // Assert
-            result.IsValid.Should().BeTrue();
+            result.IsValid.Should().BeFalse();
+            result.ErrorMessage.Should().Be("Cannot update status of a disputed share");
         }
 
         [Fact]
-        public void ValidateStatusTransition_ToDisputedFromReturned_ReturnsSuccess()
+        public void ValidateStatusTransition_WhenShareIsNotDisputed_ReturnsSuccess()
         {
             // Arrange
             var lender = TestDataBuilder.CreateUser(id: "lender-1");
@@ -739,13 +670,14 @@ namespace BookSharingApp.Tests.Validators
             var share = TestDataBuilder.CreateShare(
                 userBookId: userBook.Id,
                 borrower: borrower.Id,
-                status: ShareStatus.Returned,
+                status: ShareStatus.PickedUp,
+                isDisputed: false,
                 userBook: userBook,
                 borrowerUser: borrower
             );
 
             // Act
-            var result = _validator.ValidateStatusTransition(share, ShareStatus.Disputed, borrower.Id);
+            var result = _validator.ValidateStatusTransition(share, ShareStatus.Returned, borrower.Id);
 
             // Assert
             result.IsValid.Should().BeTrue();

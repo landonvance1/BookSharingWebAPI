@@ -26,7 +26,14 @@ namespace BookSharingApp.Models
         [Required]
         [Column("status")]
         public ShareStatus Status { get; set; }
-        
+
+        [Required]
+        [Column("is_disputed")]
+        public bool IsDisputed { get; set; } = false;
+
+        [Column("disputed_by")]
+        public string? DisputedBy { get; set; }
+
         // Navigation properties
         public UserBook UserBook { get; set; } = null!;
         public User BorrowerUser { get; set; } = null!;

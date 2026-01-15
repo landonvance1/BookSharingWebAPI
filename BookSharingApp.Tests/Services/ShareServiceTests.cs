@@ -1087,7 +1087,9 @@ namespace BookSharingApp.Tests.Services
                 var share = TestDataBuilder.CreateShare(
                     userBookId: userBook.Id,
                     borrower: borrower.Id,
-                    status: ShareStatus.Disputed,
+                    status: ShareStatus.PickedUp,
+                    isDisputed: true,
+                    disputedBy: lender.Id,
                     userBook: userBook,
                     borrowerUser: borrower
                 );
@@ -1364,7 +1366,9 @@ namespace BookSharingApp.Tests.Services
                 var share = TestDataBuilder.CreateShare(
                     userBookId: userBook.Id,
                     borrower: borrower.Id,
-                    status: ShareStatus.Disputed,  // Terminal status
+                    status: ShareStatus.Returned,
+                    isDisputed: true,
+                    disputedBy: borrower.Id,
                     userBook: userBook,
                     borrowerUser: borrower
                 );
@@ -1421,7 +1425,7 @@ namespace BookSharingApp.Tests.Services
 
                 // Assert
                 await act.Should().ThrowAsync<InvalidOperationException>()
-                    .WithMessage("Can only archive shares in terminal status (Declined, Disputed, or HomeSafe)");
+                    .WithMessage("Can only archive shares in terminal status (Declined, HomeSafe, or Disputed)");
             }
 
             [Fact]
@@ -2071,6 +2075,337 @@ namespace BookSharingApp.Tests.Services
                 // Assert
                 await act.Should().ThrowAsync<UnauthorizedAccessException>()
                     .WithMessage("Only the lender or borrower can unarchive the share");
+            }
+        }
+
+        public class RaiseDisputeAsyncTests : ShareServiceTestBase
+        {
+            [Fact]
+            public async Task RaiseDisputeAsync_WithValidRequest_SetsDisputeFlags()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var shareService = new ShareService(context, LoggerMock.Object, NotificationServiceMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1", firstName: "John", lastName: "Doe");
+                var borrower = TestDataBuilder.CreateUser(id: "borrower-1", firstName: "Jane", lastName: "Smith");
+                var book = TestDataBuilder.CreateBook(title: "The Great Gatsby", author: "F. Scott Fitzgerald");
+
+                context.Users.AddRange(lender, borrower);
+                context.Books.Add(book);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    status: UserBookStatus.Available,
+                    user: lender,
+                    book: book
+                );
+                context.UserBooks.Add(userBook);
+                await context.SaveChangesAsync();
+
+                var share = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower.Id,
+                    status: ShareStatus.PickedUp,
+                    userBook: userBook,
+                    borrowerUser: borrower
+                );
+                context.Shares.Add(share);
+                await context.SaveChangesAsync();
+
+                // Act
+                await shareService.RaiseDisputeAsync(share.Id, borrower.Id);
+
+                // Assert
+                var updatedShare = await context.Shares.FindAsync(share.Id);
+                updatedShare.Should().NotBeNull();
+                updatedShare!.IsDisputed.Should().BeTrue();
+                updatedShare.DisputedBy.Should().Be(borrower.Id);
+            }
+
+            [Fact]
+            public async Task RaiseDisputeAsync_WithValidRequest_CreatesNotification()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var shareService = new ShareService(context, LoggerMock.Object, NotificationServiceMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1", firstName: "John", lastName: "Doe");
+                var borrower = TestDataBuilder.CreateUser(id: "borrower-1", firstName: "Jane", lastName: "Smith");
+                var book = TestDataBuilder.CreateBook(title: "The Great Gatsby", author: "F. Scott Fitzgerald");
+
+                context.Users.AddRange(lender, borrower);
+                context.Books.Add(book);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    status: UserBookStatus.Available,
+                    user: lender,
+                    book: book
+                );
+                context.UserBooks.Add(userBook);
+                await context.SaveChangesAsync();
+
+                var share = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower.Id,
+                    status: ShareStatus.PickedUp,
+                    userBook: userBook,
+                    borrowerUser: borrower
+                );
+                context.Shares.Add(share);
+                await context.SaveChangesAsync();
+
+                // Act
+                await shareService.RaiseDisputeAsync(share.Id, borrower.Id);
+
+                // Assert
+                NotificationServiceMock.Verify(
+                    x => x.CreateShareNotificationAsync(
+                        share.Id,
+                        NotificationType.ShareStatusChanged,
+                        It.Is<string>(s => s.Contains("dispute") && s.Contains(book.Title)),
+                        borrower.Id),
+                    Times.Once);
+            }
+
+            [Fact]
+            public async Task RaiseDisputeAsync_WhenShareNotFound_ThrowsInvalidOperationException()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var shareService = new ShareService(context, LoggerMock.Object, NotificationServiceMock.Object);
+
+                // Act
+                var act = async () => await shareService.RaiseDisputeAsync(999, "user-1");
+
+                // Assert
+                await act.Should().ThrowAsync<InvalidOperationException>()
+                    .WithMessage("Share not found");
+            }
+
+            [Fact]
+            public async Task RaiseDisputeAsync_WhenUserNotAuthorized_ThrowsUnauthorizedAccessException()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var shareService = new ShareService(context, LoggerMock.Object, NotificationServiceMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1", firstName: "John", lastName: "Doe");
+                var borrower = TestDataBuilder.CreateUser(id: "borrower-1", firstName: "Jane", lastName: "Smith");
+                var unauthorizedUser = TestDataBuilder.CreateUser(id: "unauthorized-1", firstName: "Bob", lastName: "Jones");
+                var book = TestDataBuilder.CreateBook(title: "The Great Gatsby", author: "F. Scott Fitzgerald");
+
+                context.Users.AddRange(lender, borrower, unauthorizedUser);
+                context.Books.Add(book);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    status: UserBookStatus.Available,
+                    user: lender,
+                    book: book
+                );
+                context.UserBooks.Add(userBook);
+                await context.SaveChangesAsync();
+
+                var share = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower.Id,
+                    status: ShareStatus.PickedUp,
+                    userBook: userBook,
+                    borrowerUser: borrower
+                );
+                context.Shares.Add(share);
+                await context.SaveChangesAsync();
+
+                // Act
+                var act = async () => await shareService.RaiseDisputeAsync(share.Id, unauthorizedUser.Id);
+
+                // Assert
+                await act.Should().ThrowAsync<UnauthorizedAccessException>()
+                    .WithMessage("Only the lender or borrower can raise a dispute");
+            }
+
+            [Fact]
+            public async Task RaiseDisputeAsync_WhenAlreadyDisputed_ThrowsInvalidOperationException()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var shareService = new ShareService(context, LoggerMock.Object, NotificationServiceMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1", firstName: "John", lastName: "Doe");
+                var borrower = TestDataBuilder.CreateUser(id: "borrower-1", firstName: "Jane", lastName: "Smith");
+                var book = TestDataBuilder.CreateBook(title: "The Great Gatsby", author: "F. Scott Fitzgerald");
+
+                context.Users.AddRange(lender, borrower);
+                context.Books.Add(book);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    status: UserBookStatus.Available,
+                    user: lender,
+                    book: book
+                );
+                context.UserBooks.Add(userBook);
+                await context.SaveChangesAsync();
+
+                var share = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower.Id,
+                    status: ShareStatus.PickedUp,
+                    isDisputed: true,
+                    disputedBy: lender.Id,
+                    userBook: userBook,
+                    borrowerUser: borrower
+                );
+                context.Shares.Add(share);
+                await context.SaveChangesAsync();
+
+                // Act
+                var act = async () => await shareService.RaiseDisputeAsync(share.Id, borrower.Id);
+
+                // Assert
+                await act.Should().ThrowAsync<InvalidOperationException>()
+                    .WithMessage("Share is already disputed");
+            }
+
+            [Fact]
+            public async Task RaiseDisputeAsync_WhenStatusIsHomeSafe_ThrowsInvalidOperationException()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var shareService = new ShareService(context, LoggerMock.Object, NotificationServiceMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1", firstName: "John", lastName: "Doe");
+                var borrower = TestDataBuilder.CreateUser(id: "borrower-1", firstName: "Jane", lastName: "Smith");
+                var book = TestDataBuilder.CreateBook(title: "The Great Gatsby", author: "F. Scott Fitzgerald");
+
+                context.Users.AddRange(lender, borrower);
+                context.Books.Add(book);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    status: UserBookStatus.Available,
+                    user: lender,
+                    book: book
+                );
+                context.UserBooks.Add(userBook);
+                await context.SaveChangesAsync();
+
+                var share = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower.Id,
+                    status: ShareStatus.HomeSafe,
+                    userBook: userBook,
+                    borrowerUser: borrower
+                );
+                context.Shares.Add(share);
+                await context.SaveChangesAsync();
+
+                // Act
+                var act = async () => await shareService.RaiseDisputeAsync(share.Id, borrower.Id);
+
+                // Assert
+                await act.Should().ThrowAsync<InvalidOperationException>()
+                    .WithMessage("Cannot dispute shares in terminal status (HomeSafe or Declined)");
+            }
+
+            [Fact]
+            public async Task RaiseDisputeAsync_WhenStatusIsDeclined_ThrowsInvalidOperationException()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var shareService = new ShareService(context, LoggerMock.Object, NotificationServiceMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1", firstName: "John", lastName: "Doe");
+                var borrower = TestDataBuilder.CreateUser(id: "borrower-1", firstName: "Jane", lastName: "Smith");
+                var book = TestDataBuilder.CreateBook(title: "The Great Gatsby", author: "F. Scott Fitzgerald");
+
+                context.Users.AddRange(lender, borrower);
+                context.Books.Add(book);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    status: UserBookStatus.Available,
+                    user: lender,
+                    book: book
+                );
+                context.UserBooks.Add(userBook);
+                await context.SaveChangesAsync();
+
+                var share = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower.Id,
+                    status: ShareStatus.Declined,
+                    userBook: userBook,
+                    borrowerUser: borrower
+                );
+                context.Shares.Add(share);
+                await context.SaveChangesAsync();
+
+                // Act
+                var act = async () => await shareService.RaiseDisputeAsync(share.Id, borrower.Id);
+
+                // Assert
+                await act.Should().ThrowAsync<InvalidOperationException>()
+                    .WithMessage("Cannot dispute shares in terminal status (HomeSafe or Declined)");
+            }
+
+            [Fact]
+            public async Task RaiseDisputeAsync_AsLender_SetsDisputeFlags()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var shareService = new ShareService(context, LoggerMock.Object, NotificationServiceMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1", firstName: "John", lastName: "Doe");
+                var borrower = TestDataBuilder.CreateUser(id: "borrower-1", firstName: "Jane", lastName: "Smith");
+                var book = TestDataBuilder.CreateBook(title: "The Great Gatsby", author: "F. Scott Fitzgerald");
+
+                context.Users.AddRange(lender, borrower);
+                context.Books.Add(book);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    status: UserBookStatus.Available,
+                    user: lender,
+                    book: book
+                );
+                context.UserBooks.Add(userBook);
+                await context.SaveChangesAsync();
+
+                var share = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower.Id,
+                    status: ShareStatus.Returned,
+                    userBook: userBook,
+                    borrowerUser: borrower
+                );
+                context.Shares.Add(share);
+                await context.SaveChangesAsync();
+
+                // Act
+                await shareService.RaiseDisputeAsync(share.Id, lender.Id);
+
+                // Assert
+                var updatedShare = await context.Shares.FindAsync(share.Id);
+                updatedShare.Should().NotBeNull();
+                updatedShare!.IsDisputed.Should().BeTrue();
+                updatedShare.DisputedBy.Should().Be(lender.Id);
             }
         }
     }
