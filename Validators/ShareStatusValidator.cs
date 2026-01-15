@@ -13,6 +13,12 @@ namespace BookSharingApp.Validators
                 return ValidationResult.Failure("You are not authorized to update this share");
             }
 
+            // Cannot update status if share is disputed
+            if (share.IsDisputed)
+            {
+                return ValidationResult.Failure("Cannot update status of a disputed share");
+            }
+
             // Check role-specific permissions
             var isLender = share.UserBook.UserId == currentUserId;
             var isBorrower = share.Borrower == currentUserId;
@@ -40,10 +46,6 @@ namespace BookSharingApp.Validators
 
         private bool IsValidStatusTransition(ShareStatus currentStatus, ShareStatus newStatus)
         {
-            // Can always go to Disputed
-            if (newStatus == ShareStatus.Disputed)
-                return true;
-
             // Cannot go backwards or stay the same
             if (newStatus <= currentStatus)
                 return false;
@@ -56,7 +58,6 @@ namespace BookSharingApp.Validators
                 ShareStatus.PickedUp => newStatus == ShareStatus.Returned,
                 ShareStatus.Returned => newStatus == ShareStatus.HomeSafe,
                 ShareStatus.HomeSafe => false, // Terminal state
-                ShareStatus.Disputed => false, // Terminal state
                 ShareStatus.Declined => false, // Terminal state
                 _ => false
             };

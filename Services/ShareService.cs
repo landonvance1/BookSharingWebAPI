@@ -97,8 +97,10 @@ namespace BookSharingApp.Services
                 throw new InvalidOperationException("Book is not available for sharing");
 
             // Check if there's an active share for this userbook (book is currently out on loan)
+            // Disputed shares don't block new requests
             var activeShare = await _context.Shares
                 .FirstOrDefaultAsync(s => s.UserBookId == userBookId &&
+                                        !s.IsDisputed &&
                                         (s.Status == ShareStatus.Ready ||
                                          s.Status == ShareStatus.PickedUp ||
                                          s.Status == ShareStatus.Returned));
@@ -121,9 +123,11 @@ namespace BookSharingApp.Services
                 throw new InvalidOperationException("You must share a community with the book owner to request this book");
 
             // Check if there's already an active share for this userbook by this borrower
+            // Disputed shares don't block new requests
             var existingShare = await _context.Shares
                 .FirstOrDefaultAsync(s => s.UserBookId == userBookId &&
                                         s.Borrower == borrowerId &&
+                                        !s.IsDisputed &&
                                         s.Status <= ShareStatus.Returned);
             if (existingShare != null)
                 throw new InvalidOperationException("You already have an active share request for this book");
@@ -188,7 +192,6 @@ namespace BookSharingApp.Services
                 ShareStatus.PickedUp => "picked up",
                 ShareStatus.Returned => "returned",
                 ShareStatus.HomeSafe => "confirmed home safe",
-                ShareStatus.Disputed => "disputed",
                 ShareStatus.Declined => "declined",
                 _ => newStatus.ToString()
             };
@@ -240,6 +243,50 @@ namespace BookSharingApp.Services
                 updatedByUserId);
         }
 
+        public async Task RaiseDisputeAsync(int shareId, string raisedByUserId)
+        {
+            // Find the share with required includes
+            var share = await _context.Shares
+                .Include(s => s.UserBook)
+                    .ThenInclude(ub => ub.Book)
+                .Include(s => s.UserBook)
+                    .ThenInclude(ub => ub.User)
+                .Include(s => s.BorrowerUser)
+                .FirstOrDefaultAsync(s => s.Id == shareId);
+
+            if (share is null)
+                throw new InvalidOperationException("Share not found");
+
+            // Verify that current user is the lender or borrower
+            if (share.UserBook.UserId != raisedByUserId && share.Borrower != raisedByUserId)
+                throw new UnauthorizedAccessException("Only the lender or borrower can raise a dispute");
+
+            // Check if already disputed
+            if (share.IsDisputed)
+                throw new InvalidOperationException("Share is already disputed");
+
+            // Cannot dispute terminal status shares
+            if (share.Status == ShareStatus.HomeSafe || share.Status == ShareStatus.Declined)
+                throw new InvalidOperationException("Cannot dispute shares in terminal status (HomeSafe or Declined)");
+
+            // Set dispute flags
+            share.IsDisputed = true;
+            share.DisputedBy = raisedByUserId;
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Raised dispute on share {ShareId} by user {UserId}", shareId, raisedByUserId);
+
+            // Create notification for the other party about the dispute
+            var disputerName = await GetUserNameAsync(raisedByUserId);
+            var bookTitle = share.UserBook?.Book?.Title ?? "the book";
+
+            await _notificationService.CreateShareNotificationAsync(
+                shareId,
+                Common.NotificationType.ShareStatusChanged,
+                $"A dispute has been raised for '{bookTitle}' by {disputerName}",
+                raisedByUserId);
+        }
+
         public async Task ArchiveShareAsync(int shareId, string archivedByUserId)
         {
             // Find the share with required includes
@@ -254,12 +301,12 @@ namespace BookSharingApp.Services
             if (share.UserBook.UserId != archivedByUserId && share.Borrower != archivedByUserId)
                 throw new UnauthorizedAccessException("Only the lender or borrower can archive the share");
 
-            // Verify that share is in terminal status
+            // Verify that share is in terminal status or disputed
             if (share.Status != ShareStatus.Declined &&
-                share.Status != ShareStatus.Disputed &&
-                share.Status != ShareStatus.HomeSafe)
+                share.Status != ShareStatus.HomeSafe &&
+                !share.IsDisputed)
             {
-                throw new InvalidOperationException("Can only archive shares in terminal status (Declined, Disputed, or HomeSafe)");
+                throw new InvalidOperationException("Can only archive shares in terminal status (Declined, HomeSafe, or Disputed)");
             }
 
             // Check if already archived

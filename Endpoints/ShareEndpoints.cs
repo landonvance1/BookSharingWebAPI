@@ -181,6 +181,31 @@ namespace BookSharingApp.Endpoints
             })
             .WithName("UnarchiveShare")
             .WithOpenApi();
+
+            // POST /shares/{id}/dispute - Raise a dispute on a share
+            shares.MapPost("/{id}/dispute", async (int id, HttpContext httpContext, IShareService shareService) =>
+            {
+                var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+
+                try
+                {
+                    await shareService.RaiseDisputeAsync(id, currentUserId);
+                    var updatedShare = await shareService.GetShareAsync(id);
+                    return Results.Ok(updatedShare);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return ex.Message.Contains("not found")
+                        ? Results.NotFound(ex.Message)
+                        : Results.BadRequest(ex.Message);
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    return Results.Unauthorized();
+                }
+            })
+            .WithName("RaiseDispute")
+            .WithOpenApi();
         }
 
         private static string GetStatusChangeMessage(ShareStatus newStatus)
@@ -191,7 +216,6 @@ namespace BookSharingApp.Endpoints
                 ShareStatus.PickedUp => "✅ Book has been picked up. Enjoy your reading!",
                 ShareStatus.Returned => "📖 Book has been returned. Please confirm if everything looks good.",
                 ShareStatus.HomeSafe => "🏠 Share completed successfully! Thank you for using the book sharing community.",
-                ShareStatus.Disputed => "⚠️ A dispute has been raised. Please discuss the issue here.",
                 _ => string.Empty
             };
         }

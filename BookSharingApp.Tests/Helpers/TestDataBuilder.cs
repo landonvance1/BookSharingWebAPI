@@ -103,6 +103,8 @@ namespace BookSharingApp.Tests.Helpers
             string? borrower = null,
             ShareStatus status = ShareStatus.Requested,
             DateTime? returnDate = null,
+            bool isDisputed = false,
+            string? disputedBy = null,
             UserBook? userBook = null,
             User? borrowerUser = null)
         {
@@ -113,6 +115,8 @@ namespace BookSharingApp.Tests.Helpers
                 Borrower = borrower ?? borrowerUser?.Id ?? "default-borrower",
                 Status = status,
                 ReturnDate = returnDate,
+                IsDisputed = isDisputed,
+                DisputedBy = disputedBy,
                 UserBook = userBook ?? new UserBook
                 {
                     Id = userBookId ?? 1,
