@@ -19,5 +19,17 @@ namespace BookSharingApp.Services
         Task RaiseDisputeAsync(int shareId, string raisedByUserId);
         Task ArchiveShareAsync(int shareId, string archivedByUserId);
         Task UnarchiveShareAsync(int shareId, string unarchivedByUserId);
+
+        /// <summary>
+        /// Handles shares when a UserBook is soft-deleted.
+        /// - Requested shares: Auto-decline with borrower notification
+        /// - Active shares (Ready/PickedUp/Returned): Auto-archive for owner, notify borrower
+        /// - Disputed shares: Silently auto-archive for owner
+        /// - Terminal shares (HomeSafe/Declined): Auto-archive for owner
+        /// </summary>
+        /// <param name="userBookId">The UserBook being deleted</param>
+        /// <param name="lenderId">The owner/lender of the UserBook</param>
+        /// <returns>True if there were active shares that required handling</returns>
+        Task<bool> HandleUserBookDeletionAsync(int userBookId, string lenderId);
     }
 }

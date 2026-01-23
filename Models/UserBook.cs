@@ -23,7 +23,14 @@ namespace BookSharingApp.Models
         [Required]
         [Column("status")]
         public UserBookStatus Status { get; set; }
-        
+
+        [Required]
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; } = false;
+
+        [Column("deleted_at")]
+        public DateTime? DeletedAt { get; set; }
+
         // Navigation properties
         public User User { get; set; } = null!;
         public Book Book { get; set; } = null!;

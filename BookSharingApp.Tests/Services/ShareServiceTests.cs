@@ -764,6 +764,48 @@ namespace BookSharingApp.Tests.Services
                 await act.Should().ThrowAsync<InvalidOperationException>()
                     .WithMessage("You must share a community with the book owner to request this book");
             }
+
+            [Fact]
+            public async Task CreateShareAsync_WhenUserBookIsSoftDeleted_ThrowsInvalidOperationException()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var shareService = new ShareService(context, LoggerMock.Object, NotificationServiceMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1");
+                var borrower = TestDataBuilder.CreateUser(id: "borrower-1");
+                var book = TestDataBuilder.CreateBook();
+                var community = TestDataBuilder.CreateCommunity();
+
+                context.Users.AddRange(lender, borrower);
+                context.Books.Add(book);
+                context.Communities.Add(community);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    status: UserBookStatus.Available,
+                    isDeleted: true,
+                    deletedAt: DateTime.UtcNow,
+                    user: lender,
+                    book: book
+                );
+                context.UserBooks.Add(userBook);
+
+                context.CommunityUsers.AddRange(
+                    TestDataBuilder.CreateCommunityUser(community.Id, lender.Id),
+                    TestDataBuilder.CreateCommunityUser(community.Id, borrower.Id)
+                );
+                await context.SaveChangesAsync();
+
+                // Act
+                var act = async () => await shareService.CreateShareAsync(userBook.Id, borrower.Id);
+
+                // Assert
+                await act.Should().ThrowAsync<InvalidOperationException>()
+                    .WithMessage("Book has been removed from the owner's library");
+            }
         }
 
         public class GetSharesTests : ShareServiceTestBase
@@ -2406,6 +2448,434 @@ namespace BookSharingApp.Tests.Services
                 updatedShare.Should().NotBeNull();
                 updatedShare!.IsDisputed.Should().BeTrue();
                 updatedShare.DisputedBy.Should().Be(lender.Id);
+            }
+        }
+
+        public class HandleUserBookDeletionAsyncTests : ShareServiceTestBase
+        {
+            [Fact]
+            public async Task HandleUserBookDeletionAsync_WhenUserBookNotFound_ThrowsInvalidOperationException()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var shareService = new ShareService(context, LoggerMock.Object, NotificationServiceMock.Object);
+
+                // Act
+                var act = async () => await shareService.HandleUserBookDeletionAsync(999, "lender-1");
+
+                // Assert
+                await act.Should().ThrowAsync<InvalidOperationException>()
+                    .WithMessage("UserBook not found");
+            }
+
+            [Fact]
+            public async Task HandleUserBookDeletionAsync_WhenNotOwner_ThrowsUnauthorizedAccessException()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var shareService = new ShareService(context, LoggerMock.Object, NotificationServiceMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1");
+                var otherUser = TestDataBuilder.CreateUser(id: "other-user");
+                var book = TestDataBuilder.CreateBook();
+
+                context.Users.AddRange(lender, otherUser);
+                context.Books.Add(book);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    user: lender,
+                    book: book
+                );
+                context.UserBooks.Add(userBook);
+                await context.SaveChangesAsync();
+
+                // Act
+                var act = async () => await shareService.HandleUserBookDeletionAsync(userBook.Id, otherUser.Id);
+
+                // Assert
+                await act.Should().ThrowAsync<UnauthorizedAccessException>()
+                    .WithMessage("Only the owner can delete this book from their library");
+            }
+
+            [Fact]
+            public async Task HandleUserBookDeletionAsync_AutoDeclinesRequestedShares()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var shareService = new ShareService(context, LoggerMock.Object, NotificationServiceMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1", firstName: "John", lastName: "Doe");
+                var borrower = TestDataBuilder.CreateUser(id: "borrower-1");
+                var book = TestDataBuilder.CreateBook(title: "Test Book");
+
+                context.Users.AddRange(lender, borrower);
+                context.Books.Add(book);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    user: lender,
+                    book: book
+                );
+                context.UserBooks.Add(userBook);
+                await context.SaveChangesAsync();
+
+                var share = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower.Id,
+                    status: ShareStatus.Requested,
+                    userBook: userBook,
+                    borrowerUser: borrower
+                );
+                context.Shares.Add(share);
+                await context.SaveChangesAsync();
+
+                // Act
+                var hadActiveShares = await shareService.HandleUserBookDeletionAsync(userBook.Id, lender.Id);
+
+                // Assert
+                hadActiveShares.Should().BeFalse(); // Requested is not considered "active"
+                var updatedShare = await context.Shares.FindAsync(share.Id);
+                updatedShare.Should().NotBeNull();
+                updatedShare!.Status.Should().Be(ShareStatus.Declined);
+
+                // Verify notification was sent
+                NotificationServiceMock.Verify(
+                    x => x.CreateShareNotificationAsync(
+                        share.Id,
+                        NotificationType.UserBookWithdrawn,
+                        It.Is<string>(msg => msg.Contains("was declined") && msg.Contains("removed it from their library")),
+                        lender.Id
+                    ),
+                    Times.Once
+                );
+            }
+
+            [Fact]
+            public async Task HandleUserBookDeletionAsync_NotifiesBorrowerForActiveShares()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var shareService = new ShareService(context, LoggerMock.Object, NotificationServiceMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1", firstName: "John", lastName: "Doe");
+                var borrower = TestDataBuilder.CreateUser(id: "borrower-1");
+                var book = TestDataBuilder.CreateBook(title: "Test Book");
+
+                context.Users.AddRange(lender, borrower);
+                context.Books.Add(book);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    user: lender,
+                    book: book
+                );
+                context.UserBooks.Add(userBook);
+                await context.SaveChangesAsync();
+
+                var share = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower.Id,
+                    status: ShareStatus.PickedUp,
+                    userBook: userBook,
+                    borrowerUser: borrower
+                );
+                context.Shares.Add(share);
+                await context.SaveChangesAsync();
+
+                // Act
+                var hadActiveShares = await shareService.HandleUserBookDeletionAsync(userBook.Id, lender.Id);
+
+                // Assert
+                hadActiveShares.Should().BeTrue();
+
+                // Verify notification was sent about withdrawal
+                NotificationServiceMock.Verify(
+                    x => x.CreateShareNotificationAsync(
+                        share.Id,
+                        NotificationType.UserBookWithdrawn,
+                        It.Is<string>(msg => msg.Contains("has been removed") && msg.Contains("coordinate the return")),
+                        lender.Id
+                    ),
+                    Times.Once
+                );
+            }
+
+            [Fact]
+            public async Task HandleUserBookDeletionAsync_ArchivesShareForLender()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var shareService = new ShareService(context, LoggerMock.Object, NotificationServiceMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1", firstName: "John", lastName: "Doe");
+                var borrower = TestDataBuilder.CreateUser(id: "borrower-1");
+                var book = TestDataBuilder.CreateBook(title: "Test Book");
+
+                context.Users.AddRange(lender, borrower);
+                context.Books.Add(book);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    user: lender,
+                    book: book
+                );
+                context.UserBooks.Add(userBook);
+                await context.SaveChangesAsync();
+
+                var share = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower.Id,
+                    status: ShareStatus.Ready,
+                    userBook: userBook,
+                    borrowerUser: borrower
+                );
+                context.Shares.Add(share);
+                await context.SaveChangesAsync();
+
+                // Act
+                await shareService.HandleUserBookDeletionAsync(userBook.Id, lender.Id);
+
+                // Assert
+                var archiveState = await context.ShareUserStates
+                    .FirstOrDefaultAsync(sus => sus.ShareId == share.Id && sus.UserId == lender.Id);
+                archiveState.Should().NotBeNull();
+                archiveState!.IsArchived.Should().BeTrue();
+                archiveState.ArchivedAt.Should().NotBeNull();
+            }
+
+            [Fact]
+            public async Task HandleUserBookDeletionAsync_SilentlyArchivesDisputedShares()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var shareService = new ShareService(context, LoggerMock.Object, NotificationServiceMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1", firstName: "John", lastName: "Doe");
+                var borrower = TestDataBuilder.CreateUser(id: "borrower-1");
+                var book = TestDataBuilder.CreateBook(title: "Test Book");
+
+                context.Users.AddRange(lender, borrower);
+                context.Books.Add(book);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    user: lender,
+                    book: book
+                );
+                context.UserBooks.Add(userBook);
+                await context.SaveChangesAsync();
+
+                var share = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower.Id,
+                    status: ShareStatus.PickedUp,
+                    isDisputed: true,
+                    disputedBy: borrower.Id,
+                    userBook: userBook,
+                    borrowerUser: borrower
+                );
+                context.Shares.Add(share);
+                await context.SaveChangesAsync();
+
+                // Act
+                var hadActiveShares = await shareService.HandleUserBookDeletionAsync(userBook.Id, lender.Id);
+
+                // Assert
+                hadActiveShares.Should().BeFalse(); // Disputed shares are not counted as active
+
+                // Verify no notification was sent for disputed share
+                NotificationServiceMock.Verify(
+                    x => x.CreateShareNotificationAsync(
+                        share.Id,
+                        It.IsAny<string>(),
+                        It.IsAny<string>(),
+                        It.IsAny<string>()
+                    ),
+                    Times.Never
+                );
+
+                // But should still be archived
+                var archiveState = await context.ShareUserStates
+                    .FirstOrDefaultAsync(sus => sus.ShareId == share.Id && sus.UserId == lender.Id);
+                archiveState.Should().NotBeNull();
+                archiveState!.IsArchived.Should().BeTrue();
+            }
+
+            [Fact]
+            public async Task HandleUserBookDeletionAsync_ArchivesTerminalStateShares()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var shareService = new ShareService(context, LoggerMock.Object, NotificationServiceMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1", firstName: "John", lastName: "Doe");
+                var borrower = TestDataBuilder.CreateUser(id: "borrower-1");
+                var book = TestDataBuilder.CreateBook(title: "Test Book");
+
+                context.Users.AddRange(lender, borrower);
+                context.Books.Add(book);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    user: lender,
+                    book: book
+                );
+                context.UserBooks.Add(userBook);
+                await context.SaveChangesAsync();
+
+                var share = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower.Id,
+                    status: ShareStatus.HomeSafe,
+                    userBook: userBook,
+                    borrowerUser: borrower
+                );
+                context.Shares.Add(share);
+                await context.SaveChangesAsync();
+
+                // Act
+                var hadActiveShares = await shareService.HandleUserBookDeletionAsync(userBook.Id, lender.Id);
+
+                // Assert
+                hadActiveShares.Should().BeFalse(); // HomeSafe is terminal, not active
+
+                // Should be archived silently (no notification for terminal states)
+                var archiveState = await context.ShareUserStates
+                    .FirstOrDefaultAsync(sus => sus.ShareId == share.Id && sus.UserId == lender.Id);
+                archiveState.Should().NotBeNull();
+                archiveState!.IsArchived.Should().BeTrue();
+            }
+
+            [Fact]
+            public async Task HandleUserBookDeletionAsync_HandlesMultipleSharesCorrectly()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var shareService = new ShareService(context, LoggerMock.Object, NotificationServiceMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1", firstName: "John", lastName: "Doe");
+                var borrower1 = TestDataBuilder.CreateUser(id: "borrower-1");
+                var borrower2 = TestDataBuilder.CreateUser(id: "borrower-2");
+                var book = TestDataBuilder.CreateBook(title: "Test Book");
+
+                context.Users.AddRange(lender, borrower1, borrower2);
+                context.Books.Add(book);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    user: lender,
+                    book: book
+                );
+                context.UserBooks.Add(userBook);
+                await context.SaveChangesAsync();
+
+                // One requested share
+                var requestedShare = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower1.Id,
+                    status: ShareStatus.Requested,
+                    userBook: userBook,
+                    borrowerUser: borrower1
+                );
+
+                // One terminal share
+                var terminalShare = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower2.Id,
+                    status: ShareStatus.HomeSafe,
+                    userBook: userBook,
+                    borrowerUser: borrower2
+                );
+
+                context.Shares.AddRange(requestedShare, terminalShare);
+                await context.SaveChangesAsync();
+
+                // Act
+                var hadActiveShares = await shareService.HandleUserBookDeletionAsync(userBook.Id, lender.Id);
+
+                // Assert
+                hadActiveShares.Should().BeFalse(); // Neither is active
+
+                // Requested share should be declined
+                var updatedRequestedShare = await context.Shares.FindAsync(requestedShare.Id);
+                updatedRequestedShare!.Status.Should().Be(ShareStatus.Declined);
+
+                // Both should be archived for lender
+                var archiveStates = await context.ShareUserStates
+                    .Where(sus => sus.UserId == lender.Id)
+                    .ToListAsync();
+                archiveStates.Should().HaveCount(2);
+                archiveStates.Should().OnlyContain(s => s.IsArchived);
+            }
+
+            [Fact]
+            public async Task HandleUserBookDeletionAsync_DoesNotDuplicateArchiveState()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var shareService = new ShareService(context, LoggerMock.Object, NotificationServiceMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1", firstName: "John", lastName: "Doe");
+                var borrower = TestDataBuilder.CreateUser(id: "borrower-1");
+                var book = TestDataBuilder.CreateBook(title: "Test Book");
+
+                context.Users.AddRange(lender, borrower);
+                context.Books.Add(book);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    user: lender,
+                    book: book
+                );
+                context.UserBooks.Add(userBook);
+                await context.SaveChangesAsync();
+
+                var share = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower.Id,
+                    status: ShareStatus.HomeSafe,
+                    userBook: userBook,
+                    borrowerUser: borrower
+                );
+                context.Shares.Add(share);
+                await context.SaveChangesAsync();
+
+                // Pre-existing archive state (no navigation properties to avoid tracking conflicts)
+                var existingArchiveState = new Models.ShareUserState
+                {
+                    ShareId = share.Id,
+                    UserId = lender.Id,
+                    IsArchived = true,
+                    ArchivedAt = DateTime.UtcNow.AddDays(-1)
+                };
+                context.ShareUserStates.Add(existingArchiveState);
+                await context.SaveChangesAsync();
+
+                // Act
+                await shareService.HandleUserBookDeletionAsync(userBook.Id, lender.Id);
+
+                // Assert - should not create duplicate
+                var archiveStates = await context.ShareUserStates
+                    .Where(sus => sus.ShareId == share.Id && sus.UserId == lender.Id)
+                    .ToListAsync();
+                archiveStates.Should().HaveCount(1);
             }
         }
     }
