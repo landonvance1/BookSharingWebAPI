@@ -1,9 +1,6 @@
-using BookSharingApp.Data;
-using BookSharingApp.Models;
 using BookSharingApp.Common;
-using Microsoft.AspNetCore.Authorization;
+using BookSharingApp.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace BookSharingApp.Endpoints
@@ -14,107 +11,123 @@ namespace BookSharingApp.Endpoints
         {
             var userBooks = app.MapGroup("/user-books").WithTags("UserBooks").RequireAuthorization();
 
-            userBooks.MapGet("/user/{userId}", async (string userId, ApplicationDbContext context) => 
+            userBooks.MapGet("/user/{userId}", async (string userId, IUserBookService userBookService) =>
             {
-                var userBooks = await context.UserBooks
-                    .Include(ub => ub.Book)
-                    .Where(ub => ub.UserId == userId)
-                    .ToListAsync();
-                
-                return Results.Ok(userBooks);
+                var books = await userBookService.GetUserBooksAsync(userId);
+                return Results.Ok(books);
             })
             .WithName("GetUserBooks")
             .WithOpenApi();
 
-            userBooks.MapPut("/{userBookId:int}/status", async (int userBookId, [FromBody] int status, HttpContext httpContext, ApplicationDbContext context) =>
+            userBooks.MapPut("/{userBookId:int}/status", async (
+                int userBookId,
+                [FromBody] int status,
+                HttpContext httpContext,
+                IUserBookService userBookService) =>
             {
                 if (!Enum.IsDefined(typeof(UserBookStatus), status))
                     return Results.BadRequest("Status must be Available (1) or Unavailable (2)");
-                
+
                 var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
-                
-                var userBook = await context.UserBooks.FindAsync(userBookId);
-                
-                if (userBook is null)
+
+                try
+                {
+                    var userBook = await userBookService.UpdateUserBookStatusAsync(
+                        userBookId,
+                        (UserBookStatus)status,
+                        currentUserId);
+                    return Results.Ok(userBook);
+                }
+                catch (InvalidOperationException ex) when (ex.Message == "UserBook not found")
+                {
                     return Results.NotFound();
-                
-                if (userBook.UserId != currentUserId)
+                }
+                catch (UnauthorizedAccessException)
+                {
                     return Results.Forbid();
-                
-                userBook.Status = (UserBookStatus)status;
-                await context.SaveChangesAsync();
-                
-                return Results.Ok(userBook);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return Results.BadRequest(ex.Message);
+                }
             })
             .WithName("UpdateUserBookStatus")
             .WithOpenApi();
 
-            userBooks.MapPost("/", async ([FromBody] int bookId, HttpContext httpContext, ApplicationDbContext context) =>
+            userBooks.MapPost("/", async (
+                [FromBody] int bookId,
+                HttpContext httpContext,
+                IUserBookService userBookService) =>
             {
                 var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
-                
-                // Check if book exists
-                var bookExists = await context.Books.AnyAsync(b => b.Id == bookId);
-                if (!bookExists)
-                    return Results.BadRequest("Book not found");
-                
-                // Check if user already has this book
-                var existingUserBook = await context.UserBooks
-                    .FirstOrDefaultAsync(ub => ub.UserId == currentUserId && ub.BookId == bookId);
-                if (existingUserBook != null)
-                    return Results.Conflict("User already has this book");
-                
-                var userBook = new UserBook
+
+                try
                 {
-                    UserId = currentUserId,
-                    BookId = bookId,
-                    Status = UserBookStatus.Available
-                };
-                
-                context.UserBooks.Add(userBook);
-                await context.SaveChangesAsync();
-                
-                return Results.Created($"/user-books/{userBook.Id}", userBook);
+                    var userBook = await userBookService.AddUserBookAsync(bookId, currentUserId);
+                    return Results.Created($"/user-books/{userBook.Id}", userBook);
+                }
+                catch (InvalidOperationException ex) when (ex.Message == "Book not found")
+                {
+                    return Results.BadRequest(ex.Message);
+                }
+                catch (InvalidOperationException ex) when (ex.Message == "User already has this book")
+                {
+                    return Results.Conflict(ex.Message);
+                }
             })
             .WithName("AddUserBook")
             .WithOpenApi();
 
-            userBooks.MapDelete("/{userBookId:int}", async (int userBookId, HttpContext httpContext, ApplicationDbContext context) => 
+            userBooks.MapDelete("/{userBookId:int}", async (
+                int userBookId,
+                [FromQuery] bool confirmed,
+                HttpContext httpContext,
+                IUserBookService userBookService) =>
             {
                 var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
-                
-                var userBook = await context.UserBooks.FindAsync(userBookId);
-                
-                if (userBook is null)
+
+                try
+                {
+                    var result = await userBookService.DeleteUserBookAsync(userBookId, currentUserId, confirmed);
+
+                    if (result.RequiresConfirmation)
+                    {
+                        return Results.Conflict(new
+                        {
+                            result.Message,
+                            result.RequiresConfirmation
+                        });
+                    }
+
+                    return Results.NoContent();
+                }
+                catch (InvalidOperationException ex) when (ex.Message == "UserBook not found")
+                {
                     return Results.NotFound();
-                
-                if (userBook.UserId != currentUserId)
+                }
+                catch (UnauthorizedAccessException)
+                {
                     return Results.Forbid();
-                
-                context.UserBooks.Remove(userBook);
-                await context.SaveChangesAsync();
-                
-                return Results.NoContent();
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return Results.BadRequest(ex.Message);
+                }
             })
             .WithName("DeleteUserBook")
             .WithOpenApi();
 
-            userBooks.MapGet("/search", async (string? search, HttpContext httpContext, ApplicationDbContext context) => 
+            userBooks.MapGet("/search", async (
+                string? search,
+                HttpContext httpContext,
+                IUserBookService userBookService) =>
             {
                 var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
-                
-                var results = await context.Database
-                    .SqlQueryRaw<SearchBookResult>(
-                        "SELECT * FROM search_accessible_books({0}, {1})", 
-                        currentUserId, 
-                        search ?? string.Empty)
-                    .ToListAsync();
-                
+                var results = await userBookService.SearchAccessibleBooksAsync(currentUserId, search);
                 return Results.Ok(results);
             })
             .WithName("SearchUserBooks")
             .WithOpenApi();
         }
     }
-
 }

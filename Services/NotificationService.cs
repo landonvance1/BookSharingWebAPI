@@ -77,7 +77,8 @@ namespace BookSharingApp.Services
                            n.ShareId == shareId &&
                            n.ReadAt == null &&
                            (n.NotificationType == NotificationType.ShareStatusChanged ||
-                            n.NotificationType == NotificationType.ShareDueDateChanged))
+                            n.NotificationType == NotificationType.ShareDueDateChanged ||
+                            n.NotificationType == NotificationType.UserBookWithdrawn))
                 .ToListAsync();
 
             if (notifications.Any())

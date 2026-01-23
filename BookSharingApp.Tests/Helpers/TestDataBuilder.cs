@@ -54,6 +54,8 @@ namespace BookSharingApp.Tests.Helpers
             string? userId = null,
             int? bookId = null,
             UserBookStatus status = UserBookStatus.Available,
+            bool isDeleted = false,
+            DateTime? deletedAt = null,
             User? user = null,
             Book? book = null)
         {
@@ -63,6 +65,8 @@ namespace BookSharingApp.Tests.Helpers
                 UserId = userId ?? user?.Id ?? "default-user",
                 BookId = bookId ?? book?.Id ?? 1,
                 Status = status,
+                IsDeleted = isDeleted,
+                DeletedAt = deletedAt,
                 User = user ?? new User { Id = userId ?? "default-user" },
                 Book = book ?? new Book { Id = bookId ?? 1, Title = "Default Book", Author = "Default Author" }
             };

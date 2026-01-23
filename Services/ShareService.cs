@@ -88,6 +88,10 @@ namespace BookSharingApp.Services
             if (userBook is null)
                 throw new InvalidOperationException("UserBook not found");
 
+            // Check if userbook is soft-deleted
+            if (userBook.IsDeleted)
+                throw new InvalidOperationException("Book has been removed from the owner's library");
+
             // Check if user is trying to borrow their own book
             if (userBook.UserId == borrowerId)
                 throw new InvalidOperationException("Cannot borrow your own book");
@@ -368,6 +372,107 @@ namespace BookSharingApp.Services
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Unarchived share {ShareId} for user {UserId}", shareId, unarchivedByUserId);
+        }
+
+        public async Task<bool> HandleUserBookDeletionAsync(int userBookId, string lenderId)
+        {
+            // Get the UserBook with Book info for notification messages
+            var userBook = await _context.UserBooks
+                .Include(ub => ub.Book)
+                .FirstOrDefaultAsync(ub => ub.Id == userBookId);
+
+            if (userBook is null)
+                throw new InvalidOperationException("UserBook not found");
+
+            // Verify the lenderId matches the owner
+            if (userBook.UserId != lenderId)
+                throw new UnauthorizedAccessException("Only the owner can delete this book from their library");
+
+            var bookTitle = userBook.Book?.Title ?? "the book";
+            var lenderName = await GetUserNameAsync(lenderId);
+
+            // Get all shares for this UserBook
+            var shares = await _context.Shares
+                .Where(s => s.UserBookId == userBookId)
+                .ToListAsync();
+
+            bool hadActiveShares = false;
+
+            foreach (var share in shares)
+            {
+                // Check if this is an active share (Ready, PickedUp, or Returned)
+                bool isActiveShare = share.Status == ShareStatus.Ready ||
+                                   share.Status == ShareStatus.PickedUp ||
+                                   share.Status == ShareStatus.Returned;
+
+                if (isActiveShare && !share.IsDisputed)
+                {
+                    hadActiveShares = true;
+                }
+
+                if (share.Status == ShareStatus.Requested && !share.IsDisputed)
+                {
+                    // Auto-decline requested shares
+                    share.Status = ShareStatus.Declined;
+
+                    // Notify borrower that request was declined due to book withdrawal
+                    await _notificationService.CreateShareNotificationAsync(
+                        share.Id,
+                        Common.NotificationType.UserBookWithdrawn,
+                        $"Your request for '{bookTitle}' was declined because {lenderName} removed it from their library",
+                        lenderId);
+
+                    _logger.LogInformation("Auto-declined share {ShareId} due to UserBook {UserBookId} deletion",
+                        share.Id, userBookId);
+                }
+                else if (isActiveShare && !share.IsDisputed)
+                {
+                    // Notify borrower about withdrawal for active shares
+                    await _notificationService.CreateShareNotificationAsync(
+                        share.Id,
+                        Common.NotificationType.UserBookWithdrawn,
+                        $"'{bookTitle}' has been removed from {lenderName}'s library. Please coordinate the return.",
+                        lenderId);
+
+                    _logger.LogInformation("Notified borrower of share {ShareId} about UserBook {UserBookId} deletion",
+                        share.Id, userBookId);
+                }
+
+                // Auto-archive for the lender (owner) for all terminal/disputed states
+                // and active shares (they can still see it but will be archived)
+                bool shouldArchiveForLender = share.Status == ShareStatus.HomeSafe ||
+                                             share.Status == ShareStatus.Declined ||
+                                             share.IsDisputed ||
+                                             isActiveShare;
+
+                if (shouldArchiveForLender)
+                {
+                    // Check if already archived for lender
+                    var existingState = await _context.ShareUserStates
+                        .FirstOrDefaultAsync(sus => sus.ShareId == share.Id && sus.UserId == lenderId);
+
+                    if (existingState == null)
+                    {
+                        var shareUserState = new ShareUserState
+                        {
+                            ShareId = share.Id,
+                            UserId = lenderId,
+                            IsArchived = true,
+                            ArchivedAt = DateTime.UtcNow
+                        };
+                        _context.ShareUserStates.Add(shareUserState);
+                    }
+                    else if (!existingState.IsArchived)
+                    {
+                        existingState.IsArchived = true;
+                        existingState.ArchivedAt = DateTime.UtcNow;
+                    }
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            return hadActiveShares;
         }
 
         // Helper methods
