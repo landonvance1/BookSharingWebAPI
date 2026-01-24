@@ -15,13 +15,13 @@ namespace BookSharingApp.Endpoints
         {
             var communityUsers = app.MapGroup("/community-users").WithTags("Community Users").RequireAuthorization();
 
-            communityUsers.MapPost("/join/{communityId:int}", async (int communityId, HttpContext httpContext, ApplicationDbContext context) => 
+            communityUsers.MapPost("/join/{communityId:int}", async (int communityId, HttpContext httpContext, ApplicationDbContext context) =>
             {
                 var currentUserId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
 
                 var existingRelation = await context.CommunityUsers
                     .FirstOrDefaultAsync(cu => cu.CommunityId == communityId && cu.UserId == currentUserId);
-                
+
                 if (existingRelation is not null)
                 {
                     return Results.Conflict("User is already a member of this community");
@@ -80,31 +80,31 @@ namespace BookSharingApp.Endpoints
             .WithName("LeaveCommunity")
             .WithOpenApi();
 
-            communityUsers.MapGet("/user/{userId}", async (string userId, ApplicationDbContext context) => 
+            communityUsers.MapGet("/user/{userId}", async (string userId, ApplicationDbContext context) =>
             {
                 var userCommunities = await context.CommunityUsers
                     .Where(cu => cu.UserId == userId)
                     .Select(cu => new CommunityWithMemberCountDto(
-                        cu.Community.Id, 
-                        cu.Community.Name, 
+                        cu.Community.Id,
+                        cu.Community.Name,
                         cu.Community.Active,
                         cu.Community.Members.Count()
                     ))
                     .ToListAsync();
-                
+
                 return Results.Ok(userCommunities);
             })
             .WithName("GetUserCommunities")
             .WithOpenApi();
 
-            communityUsers.MapGet("/community/{communityId:int}", async (int communityId, ApplicationDbContext context) => 
+            communityUsers.MapGet("/community/{communityId:int}", async (int communityId, ApplicationDbContext context) =>
             {
                 var communityUsers = await context.CommunityUsers
                     .Where(cu => cu.CommunityId == communityId)
                     .Include(cu => cu.User)
                     .Select(cu => cu.User)
                     .ToListAsync();
-                
+
                 return Results.Ok(communityUsers);
             })
             .WithName("GetCommunityUsers")

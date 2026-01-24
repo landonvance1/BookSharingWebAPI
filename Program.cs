@@ -36,7 +36,7 @@ builder.Services.AddIdentity<User, IdentityRole>(options =>
 .AddDefaultTokenProviders();
 
 // Configure JWT Authentication
-var jwtKey = builder.Configuration["JWT_KEY"] ?? builder.Configuration["JWT:Key"] ?? 
+var jwtKey = builder.Configuration["JWT_KEY"] ?? builder.Configuration["JWT:Key"] ??
     throw new InvalidOperationException("JWT key not found. Set JWT_KEY environment variable or JWT:Key in user secrets.");
 var key = Encoding.ASCII.GetBytes(jwtKey);
 

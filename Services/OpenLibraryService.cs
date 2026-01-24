@@ -21,7 +21,7 @@ namespace BookSharingApp.Services
             {
                 var cleanIsbn = CleanIsbn(isbn);
                 var response = await _httpClient.GetAsync($"https://openlibrary.org/search.json?isbn={cleanIsbn}");
-                
+
                 if (!response.IsSuccessStatusCode)
                 {
                     _logger.LogWarning("OpenLibrary API returned {StatusCode} for ISBN {ISBN}", response.StatusCode, cleanIsbn);
@@ -61,13 +61,13 @@ namespace BookSharingApp.Services
             try
             {
                 var queryParams = new List<string>();
-                
+
                 if (!string.IsNullOrWhiteSpace(isbn))
                     queryParams.Add($"isbn={Uri.EscapeDataString(CleanIsbn(isbn))}");
-                
+
                 if (!string.IsNullOrWhiteSpace(title))
                     queryParams.Add($"title={Uri.EscapeDataString(title)}");
-                
+
                 if (!string.IsNullOrWhiteSpace(author))
                     queryParams.Add($"author={Uri.EscapeDataString(author)}");
 
@@ -76,7 +76,7 @@ namespace BookSharingApp.Services
 
                 var queryString = string.Join("&", queryParams);
                 var response = await _httpClient.GetAsync($"https://openlibrary.org/search.json?{queryString}&limit={Constants.MaxExternalSearchResults + 1}");
-                
+
                 if (!response.IsSuccessStatusCode)
                 {
                     _logger.LogWarning("OpenLibrary API returned {StatusCode} for search query {Query}", response.StatusCode, queryString);
@@ -128,10 +128,10 @@ namespace BookSharingApp.Services
         public string? Title { get; set; }
         public List<string>? AuthorName { get; set; }
         public List<string>? Isbn { get; set; }
-        
+
         [JsonPropertyName("cover_i")]
         public int? CoverId { get; set; }
-        
+
         public int? FirstPublishYear { get; set; }
     }
 }

@@ -9,7 +9,7 @@ namespace BookSharingApp.Models
         [Key]
         [Column("community_id")]
         public int CommunityId { get; set; }
-        
+
         [Key]
         [Column("user_id")]
         public string UserId { get; set; } = string.Empty;

@@ -11,15 +11,15 @@ namespace BookSharingApp.Models
         [Column("user_book_id")]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
-        
+
         [Required]
         [Column("user_id")]
         public string UserId { get; set; } = string.Empty;
-        
+
         [Required]
         [Column("book_id")]
         public int BookId { get; set; }
-        
+
         [Required]
         [Column("status")]
         public UserBookStatus Status { get; set; }

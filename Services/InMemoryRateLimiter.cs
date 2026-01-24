@@ -32,7 +32,8 @@ namespace BookSharingApp.Services
             var now = DateTime.UtcNow;
             var entry = _entries.AddOrUpdate(key,
                 k => new RateLimitEntry(limit.MaxTokens - tokens, now.Add(limit.Window)),
-                (k, existing) => {
+                (k, existing) =>
+                {
                     if (now > existing.ResetTime)
                     {
                         // Window has expired, reset

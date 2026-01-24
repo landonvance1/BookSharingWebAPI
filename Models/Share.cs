@@ -11,18 +11,18 @@ namespace BookSharingApp.Models
         [Column("share_id")]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
-        
+
         [Required]
         [Column("user_book_id")]
         public int UserBookId { get; set; }
-        
+
         [Required]
         [Column("borrower")]
         public string Borrower { get; set; } = string.Empty;
-        
+
         [Column("return_date")]
         public DateTime? ReturnDate { get; set; }
-        
+
         [Required]
         [Column("status")]
         public ShareStatus Status { get; set; }
