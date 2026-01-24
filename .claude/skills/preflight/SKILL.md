@@ -28,11 +28,11 @@ Generate a structured preflight report in this format:
 ```
 ## Preflight Report
 
-| Check  | Status |
-|--------|--------|
-| Build  | ✅/❌  |
-| Format | ✅/❌  |
-| Tests  | ✅/❌  |
+| Check  | Status      |
+|--------|-------------|
+| Build  | PASS / FAIL |
+| Format | PASS / FAIL |
+| Tests  | PASS / FAIL |
 
 ### Metrics
 - **Build Errors:** [count]
