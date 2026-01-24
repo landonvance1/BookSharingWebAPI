@@ -1467,7 +1467,153 @@ namespace BookSharingApp.Tests.Services
 
                 // Assert
                 await act.Should().ThrowAsync<InvalidOperationException>()
-                    .WithMessage("Can only archive shares in terminal status (Declined, HomeSafe, or Disputed)");
+                    .WithMessage("Can only archive shares in terminal status (Declined, HomeSafe, Disputed) or when the associated book has been deleted");
+            }
+
+            [Fact]
+            public async Task ArchiveShareAsync_WhenUserBookIsDeleted_BorrowerCanArchiveActiveShare()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var shareService = new ShareService(context, LoggerMock.Object, NotificationServiceMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1");
+                var borrower = TestDataBuilder.CreateUser(id: "borrower-1");
+                var book = TestDataBuilder.CreateBook();
+
+                context.Users.AddRange(lender, borrower);
+                context.Books.Add(book);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    user: lender,
+                    book: book
+                );
+                userBook.IsDeleted = true;  // UserBook has been soft deleted
+                userBook.DeletedAt = DateTime.UtcNow;
+                context.UserBooks.Add(userBook);
+                await context.SaveChangesAsync();
+
+                var share = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower.Id,
+                    status: ShareStatus.PickedUp,  // Active status, NOT terminal
+                    userBook: userBook,
+                    borrowerUser: borrower
+                );
+                context.Shares.Add(share);
+                await context.SaveChangesAsync();
+
+                // Act - Borrower should be able to archive even though share is in active status
+                await shareService.ArchiveShareAsync(share.Id, borrower.Id);
+
+                // Assert
+                var shareUserState = await context.ShareUserStates
+                    .FirstOrDefaultAsync(sus => sus.ShareId == share.Id && sus.UserId == borrower.Id);
+
+                shareUserState.Should().NotBeNull();
+                shareUserState!.IsArchived.Should().BeTrue();
+                shareUserState.ArchivedAt.Should().NotBeNull();
+            }
+
+            [Fact]
+            public async Task ArchiveShareAsync_WhenUserBookIsDeleted_LenderCanArchiveActiveShare()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var shareService = new ShareService(context, LoggerMock.Object, NotificationServiceMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1");
+                var borrower = TestDataBuilder.CreateUser(id: "borrower-1");
+                var book = TestDataBuilder.CreateBook();
+
+                context.Users.AddRange(lender, borrower);
+                context.Books.Add(book);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    user: lender,
+                    book: book
+                );
+                userBook.IsDeleted = true;  // UserBook has been soft deleted
+                userBook.DeletedAt = DateTime.UtcNow;
+                context.UserBooks.Add(userBook);
+                await context.SaveChangesAsync();
+
+                var share = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower.Id,
+                    status: ShareStatus.PickedUp,  // Active status, NOT terminal
+                    userBook: userBook,
+                    borrowerUser: borrower
+                );
+                context.Shares.Add(share);
+                await context.SaveChangesAsync();
+
+                // Act - Lender should be able to archive even though share is in active status
+                await shareService.ArchiveShareAsync(share.Id, lender.Id);
+
+                // Assert
+                var shareUserState = await context.ShareUserStates
+                    .FirstOrDefaultAsync(sus => sus.ShareId == share.Id && sus.UserId == lender.Id);
+
+                shareUserState.Should().NotBeNull();
+                shareUserState!.IsArchived.Should().BeTrue();
+                shareUserState.ArchivedAt.Should().NotBeNull();
+            }
+
+            [Theory]
+            [InlineData(ShareStatus.Ready)]
+            [InlineData(ShareStatus.PickedUp)]
+            [InlineData(ShareStatus.Returned)]
+            public async Task ArchiveShareAsync_WhenUserBookIsDeleted_AllowsArchivingAnyActiveStatus(ShareStatus activeStatus)
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var shareService = new ShareService(context, LoggerMock.Object, NotificationServiceMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1");
+                var borrower = TestDataBuilder.CreateUser(id: "borrower-1");
+                var book = TestDataBuilder.CreateBook();
+
+                context.Users.AddRange(lender, borrower);
+                context.Books.Add(book);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    user: lender,
+                    book: book
+                );
+                userBook.IsDeleted = true;  // UserBook has been soft deleted
+                userBook.DeletedAt = DateTime.UtcNow;
+                context.UserBooks.Add(userBook);
+                await context.SaveChangesAsync();
+
+                var share = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower.Id,
+                    status: activeStatus,  // Test each active status
+                    userBook: userBook,
+                    borrowerUser: borrower
+                );
+                context.Shares.Add(share);
+                await context.SaveChangesAsync();
+
+                // Act - Should be able to archive any active status when UserBook is deleted
+                await shareService.ArchiveShareAsync(share.Id, borrower.Id);
+
+                // Assert
+                var shareUserState = await context.ShareUserStates
+                    .FirstOrDefaultAsync(sus => sus.ShareId == share.Id && sus.UserId == borrower.Id);
+
+                shareUserState.Should().NotBeNull();
+                shareUserState!.IsArchived.Should().BeTrue();
             }
 
             [Fact]
