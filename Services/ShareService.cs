@@ -305,12 +305,15 @@ namespace BookSharingApp.Services
             if (share.UserBook.UserId != archivedByUserId && share.Borrower != archivedByUserId)
                 throw new UnauthorizedAccessException("Only the lender or borrower can archive the share");
 
-            // Verify that share is in terminal status or disputed
+            // Verify that share is in terminal status, disputed, or userbook is deleted
+            // If a lender soft-deletes their book, borrowers should be able to archive active shares
+            // since the lending relationship can no longer progress
             if (share.Status != ShareStatus.Declined &&
                 share.Status != ShareStatus.HomeSafe &&
-                !share.IsDisputed)
+                !share.IsDisputed &&
+                !share.UserBook.IsDeleted)
             {
-                throw new InvalidOperationException("Can only archive shares in terminal status (Declined, HomeSafe, or Disputed)");
+                throw new InvalidOperationException("Can only archive shares in terminal status (Declined, HomeSafe, Disputed) or when the associated book has been deleted");
             }
 
             // Check if already archived
