@@ -10,18 +10,18 @@ namespace BookSharingApp.Models
         [Column("book_id")]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
-        
+
         [Required]
         [Column("title")]
         public string Title { get; set; } = string.Empty;
-        
+
         [Required]
         [Column("author")]
         public string Author { get; set; } = string.Empty;
-        
+
         [NotMapped]
         public string? ExternalThumbnailUrl { get; set; }
-        
+
         [NotMapped]
         public string ThumbnailUrl => ExternalThumbnailUrl ?? $"/images/{Id}.jpg";
     }

@@ -13,12 +13,12 @@ namespace BookSharingApp.Endpoints
         {
             var communities = app.MapGroup("/communities").WithTags("Communities").RequireAuthorization();
 
-            communities.MapGet("/", async (ApplicationDbContext context) => 
+            communities.MapGet("/", async (ApplicationDbContext context) =>
                 await context.Communities.ToListAsync())
                .WithName("GetAllCommunities")
                .WithOpenApi();
 
-            communities.MapGet("/{id:int}", async (int id, ApplicationDbContext context) => 
+            communities.MapGet("/{id:int}", async (int id, ApplicationDbContext context) =>
             {
                 var community = await context.Communities.FindAsync(id);
                 return community is not null ? Results.Ok(community) : Results.NotFound();
@@ -86,7 +86,7 @@ namespace BookSharingApp.Endpoints
             .WithName("AddCommunity")
             .WithOpenApi();
 
-            communities.MapPut("/{id:int}", async (int id, Community community, ApplicationDbContext context) => 
+            communities.MapPut("/{id:int}", async (int id, Community community, ApplicationDbContext context) =>
             {
                 var existingCommunity = await context.Communities.FindAsync(id);
                 if (existingCommunity is null)
@@ -103,7 +103,7 @@ namespace BookSharingApp.Endpoints
             .WithName("UpdateCommunity")
             .WithOpenApi();
 
-            communities.MapDelete("/{id:int}", async (int id, ApplicationDbContext context) => 
+            communities.MapDelete("/{id:int}", async (int id, ApplicationDbContext context) =>
             {
                 var community = await context.Communities.FindAsync(id);
                 if (community is null)

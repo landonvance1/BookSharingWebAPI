@@ -11,7 +11,7 @@ namespace BookSharingApp.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql("DROP FUNCTION IF EXISTS search_accessible_books(TEXT, TEXT);");
-            
+
             migrationBuilder.Sql(@"
                 CREATE FUNCTION search_accessible_books(
                     p_user_id TEXT,

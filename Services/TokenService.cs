@@ -25,7 +25,7 @@ namespace BookSharingApp.Services
 
         public string GenerateAccessToken(User user)
         {
-            var jwtKey = _configuration["JWT_KEY"] ?? _configuration["JWT:Key"] ?? 
+            var jwtKey = _configuration["JWT_KEY"] ?? _configuration["JWT:Key"] ??
                 throw new InvalidOperationException("JWT key not found in configuration");
             var key = Encoding.ASCII.GetBytes(jwtKey);
 
@@ -60,7 +60,7 @@ namespace BookSharingApp.Services
 
         public ClaimsPrincipal GetPrincipalFromExpiredToken(string token)
         {
-            var jwtKey = _configuration["JWT_KEY"] ?? _configuration["JWT:Key"] ?? 
+            var jwtKey = _configuration["JWT_KEY"] ?? _configuration["JWT:Key"] ??
                 throw new InvalidOperationException("JWT key not found in configuration");
             var key = Encoding.ASCII.GetBytes(jwtKey);
 
@@ -76,8 +76,8 @@ namespace BookSharingApp.Services
 
             var tokenHandler = new JwtSecurityTokenHandler();
             var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out SecurityToken securityToken);
-            
-            if (securityToken is not JwtSecurityToken jwtSecurityToken || 
+
+            if (securityToken is not JwtSecurityToken jwtSecurityToken ||
                 !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
                 throw new SecurityTokenException("Invalid token");
 
