@@ -1,3 +1,4 @@
+using BookSharingApp.Common;
 using BookSharingApp.Data;
 using BookSharingApp.Models;
 using BookSharingApp.Services;
@@ -17,18 +18,21 @@ namespace BookSharingApp.Endpoints
             auth.MapPost("/register", RegisterAsync)
                 .WithName("Register")
                 .WithSummary("Register a new user")
+                .WithMetadata(new RateLimitAttribute(RateLimitNames.AuthRegister, RateLimitScope.Ip))
                 .Produces<AuthResponseDto>()
                 .ProducesValidationProblem();
 
             auth.MapPost("/login", LoginAsync)
                 .WithName("Login")
                 .WithSummary("Login with email and password")
+                .WithMetadata(new RateLimitAttribute(RateLimitNames.AuthLogin, RateLimitScope.Ip))
                 .Produces<AuthResponseDto>()
                 .ProducesValidationProblem();
 
             auth.MapPost("/refresh", RefreshTokenAsync)
                 .WithName("RefreshToken")
                 .WithSummary("Refresh access token")
+                .WithMetadata(new RateLimitAttribute(RateLimitNames.AuthRefresh, RateLimitScope.Ip))
                 .Produces<AuthResponseDto>()
                 .ProducesValidationProblem();
         }
