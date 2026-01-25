@@ -92,6 +92,11 @@ builder.Services.AddSingleton<IRateLimitService, RateLimitService>();
 builder.Services.AddSingleton<IRateLimiter>(provider =>
 {
     var rateLimiter = new InMemoryRateLimiter();
+    rateLimiter.ConfigureLimit(RateLimitNames.GlobalApiIp, 200, TimeSpan.FromMinutes(1)); // 200 requests per minute per IP
+    rateLimiter.ConfigureLimit(RateLimitNames.GlobalApiUser, 500, TimeSpan.FromMinutes(1)); // 500 requests per minute per user
+    rateLimiter.ConfigureLimit(RateLimitNames.AuthLogin, 10, TimeSpan.FromMinutes(1)); // 10 login attempts per minute
+    rateLimiter.ConfigureLimit(RateLimitNames.AuthRegister, 5, TimeSpan.FromMinutes(1)); // 5 registrations per minute
+    rateLimiter.ConfigureLimit(RateLimitNames.AuthRefresh, 30, TimeSpan.FromMinutes(1)); // 30 token refreshes per minute
     rateLimiter.ConfigureLimit(RateLimitNames.ChatSend, 30, TimeSpan.FromMinutes(2)); // 30 messages per 2 minutes
     return rateLimiter;
 });
