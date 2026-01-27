@@ -345,6 +345,9 @@ namespace BookSharingApp.Services
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Archived share {ShareId} for user {UserId}", shareId, archivedByUserId);
+
+            // Mark all unread notifications for this share as read for the archiving user
+            await _notificationService.MarkAllShareNotificationsAsReadForUserAsync(shareId, archivedByUserId);
         }
 
         public async Task UnarchiveShareAsync(int shareId, string unarchivedByUserId)

@@ -970,6 +970,244 @@ namespace BookSharingApp.Tests.Services
                 await act.Should().ThrowAsync<UnauthorizedAccessException>()
                     .WithMessage("User is not involved in this share");
             }
+
+            [Fact]
+            public async Task WhenRecipientHasArchivedShare_DoesNotCreateNotification()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var notificationService = new NotificationService(context, LoggerMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1");
+                var borrower = TestDataBuilder.CreateUser(id: "borrower-1");
+                var book = TestDataBuilder.CreateBook();
+
+                context.Users.AddRange(lender, borrower);
+                context.Books.Add(book);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    user: lender,
+                    book: book
+                );
+                context.UserBooks.Add(userBook);
+                await context.SaveChangesAsync();
+
+                var share = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower.Id,
+                    status: ShareStatus.HomeSafe,
+                    userBook: userBook,
+                    borrowerUser: borrower
+                );
+                context.Shares.Add(share);
+                await context.SaveChangesAsync();
+
+                // Borrower has archived the share
+                var shareUserState = TestDataBuilder.CreateShareUserState(
+                    shareId: share.Id,
+                    userId: borrower.Id,
+                    isArchived: true,
+                    archivedAt: DateTime.UtcNow,
+                    share: share,
+                    user: borrower
+                );
+                context.ShareUserStates.Add(shareUserState);
+                await context.SaveChangesAsync();
+
+                // Act - Lender creates notification (recipient is borrower who has archived)
+                await notificationService.CreateShareNotificationAsync(
+                    share.Id,
+                    NotificationType.ShareStatusChanged,
+                    "Test message",
+                    lender.Id
+                );
+
+                // Assert
+                var notificationCount = await context.Notifications.CountAsync();
+                notificationCount.Should().Be(0);
+            }
+
+            [Fact]
+            public async Task WhenRecipientHasNotArchivedShare_CreatesNotification()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var notificationService = new NotificationService(context, LoggerMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1");
+                var borrower = TestDataBuilder.CreateUser(id: "borrower-1");
+                var book = TestDataBuilder.CreateBook();
+
+                context.Users.AddRange(lender, borrower);
+                context.Books.Add(book);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    user: lender,
+                    book: book
+                );
+                context.UserBooks.Add(userBook);
+                await context.SaveChangesAsync();
+
+                var share = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower.Id,
+                    status: ShareStatus.HomeSafe,
+                    userBook: userBook,
+                    borrowerUser: borrower
+                );
+                context.Shares.Add(share);
+                await context.SaveChangesAsync();
+
+                // Lender has archived, but borrower (recipient) has not
+                var shareUserState = TestDataBuilder.CreateShareUserState(
+                    shareId: share.Id,
+                    userId: lender.Id,
+                    isArchived: true,
+                    archivedAt: DateTime.UtcNow,
+                    share: share,
+                    user: lender
+                );
+                context.ShareUserStates.Add(shareUserState);
+                await context.SaveChangesAsync();
+
+                // Act - Lender creates notification (recipient is borrower who has NOT archived)
+                await notificationService.CreateShareNotificationAsync(
+                    share.Id,
+                    NotificationType.ShareStatusChanged,
+                    "Test message",
+                    lender.Id
+                );
+
+                // Assert
+                var notification = await context.Notifications.FirstOrDefaultAsync();
+                notification.Should().NotBeNull();
+                notification!.UserId.Should().Be(borrower.Id);
+            }
+
+            [Fact]
+            public async Task WhenRecipientHasUnarchivedShare_CreatesNotification()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var notificationService = new NotificationService(context, LoggerMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1");
+                var borrower = TestDataBuilder.CreateUser(id: "borrower-1");
+                var book = TestDataBuilder.CreateBook();
+
+                context.Users.AddRange(lender, borrower);
+                context.Books.Add(book);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    user: lender,
+                    book: book
+                );
+                context.UserBooks.Add(userBook);
+                await context.SaveChangesAsync();
+
+                var share = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower.Id,
+                    status: ShareStatus.HomeSafe,
+                    userBook: userBook,
+                    borrowerUser: borrower
+                );
+                context.Shares.Add(share);
+                await context.SaveChangesAsync();
+
+                // Borrower has a ShareUserState but IsArchived is false (unarchived)
+                var shareUserState = TestDataBuilder.CreateShareUserState(
+                    shareId: share.Id,
+                    userId: borrower.Id,
+                    isArchived: false,
+                    archivedAt: null,
+                    share: share,
+                    user: borrower
+                );
+                context.ShareUserStates.Add(shareUserState);
+                await context.SaveChangesAsync();
+
+                // Act - Lender creates notification (recipient is borrower who has unarchived)
+                await notificationService.CreateShareNotificationAsync(
+                    share.Id,
+                    NotificationType.ShareStatusChanged,
+                    "Test message",
+                    lender.Id
+                );
+
+                // Assert
+                var notification = await context.Notifications.FirstOrDefaultAsync();
+                notification.Should().NotBeNull();
+                notification!.UserId.Should().Be(borrower.Id);
+            }
+
+            [Fact]
+            public async Task WhenRecipientReArchivesAfterUnarchiving_DoesNotCreateNotification()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var notificationService = new NotificationService(context, LoggerMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1");
+                var borrower = TestDataBuilder.CreateUser(id: "borrower-1");
+                var book = TestDataBuilder.CreateBook();
+
+                context.Users.AddRange(lender, borrower);
+                context.Books.Add(book);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    user: lender,
+                    book: book
+                );
+                context.UserBooks.Add(userBook);
+                await context.SaveChangesAsync();
+
+                var share = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower.Id,
+                    status: ShareStatus.HomeSafe,
+                    userBook: userBook,
+                    borrowerUser: borrower
+                );
+                context.Shares.Add(share);
+                await context.SaveChangesAsync();
+
+                // Borrower archived, then unarchived, then re-archived (simulated by final state)
+                var shareUserState = TestDataBuilder.CreateShareUserState(
+                    shareId: share.Id,
+                    userId: borrower.Id,
+                    isArchived: true,  // Currently re-archived
+                    archivedAt: DateTime.UtcNow,
+                    share: share,
+                    user: borrower
+                );
+                context.ShareUserStates.Add(shareUserState);
+                await context.SaveChangesAsync();
+
+                // Act - Lender creates notification (recipient is borrower who has re-archived)
+                await notificationService.CreateShareNotificationAsync(
+                    share.Id,
+                    NotificationType.ShareStatusChanged,
+                    "Test message",
+                    lender.Id
+                );
+
+                // Assert
+                var notificationCount = await context.Notifications.CountAsync();
+                notificationCount.Should().Be(0);
+            }
         }
 
         public class MarkShareNotificationsAsReadAsyncTests : NotificationServiceTestBase
@@ -1638,6 +1876,212 @@ namespace BookSharingApp.Tests.Services
 
                 // Act
                 var act = async () => await notificationService.MarkShareChatNotificationsAsReadAsync(999, user.Id);
+
+                // Assert
+                await act.Should().NotThrowAsync();
+            }
+        }
+
+        public class MarkAllShareNotificationsAsReadForUserAsyncTests : NotificationServiceTestBase
+        {
+            [Fact]
+            public async Task MarksAllUnreadNotificationsAsRead()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var notificationService = new NotificationService(context, LoggerMock.Object);
+
+                var user = TestDataBuilder.CreateUser(id: "user-1");
+                context.Users.Add(user);
+                await context.SaveChangesAsync();
+
+                // Create notifications of all types
+                var statusNotification = TestDataBuilder.CreateNotification(
+                    userId: user.Id,
+                    notificationType: NotificationType.ShareStatusChanged,
+                    shareId: 1,
+                    readAt: null
+                );
+                var dueDateNotification = TestDataBuilder.CreateNotification(
+                    userId: user.Id,
+                    notificationType: NotificationType.ShareDueDateChanged,
+                    shareId: 1,
+                    readAt: null
+                );
+                var messageNotification = TestDataBuilder.CreateNotification(
+                    userId: user.Id,
+                    notificationType: NotificationType.ShareMessageReceived,
+                    shareId: 1,
+                    readAt: null
+                );
+                context.Notifications.AddRange(statusNotification, dueDateNotification, messageNotification);
+                await context.SaveChangesAsync();
+
+                // Act
+                await notificationService.MarkAllShareNotificationsAsReadForUserAsync(1, user.Id);
+
+                // Assert
+                var allNotifications = await context.Notifications
+                    .Where(n => n.UserId == user.Id && n.ShareId == 1)
+                    .ToListAsync();
+
+                allNotifications.Should().HaveCount(3);
+                allNotifications.Should().AllSatisfy(n => n.ReadAt.Should().NotBeNull());
+            }
+
+            [Fact]
+            public async Task DoesNotAffectAlreadyReadNotifications()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var notificationService = new NotificationService(context, LoggerMock.Object);
+
+                var user = TestDataBuilder.CreateUser(id: "user-1");
+                context.Users.Add(user);
+                await context.SaveChangesAsync();
+
+                var originalReadTime = DateTime.UtcNow.AddHours(-2);
+                var readNotification = TestDataBuilder.CreateNotification(
+                    userId: user.Id,
+                    notificationType: NotificationType.ShareStatusChanged,
+                    shareId: 1,
+                    readAt: originalReadTime
+                );
+                context.Notifications.Add(readNotification);
+                await context.SaveChangesAsync();
+
+                // Act
+                await notificationService.MarkAllShareNotificationsAsReadForUserAsync(1, user.Id);
+
+                // Assert
+                var notification = await context.Notifications.FindAsync(readNotification.Id);
+                notification.Should().NotBeNull();
+                notification!.ReadAt.Should().Be(originalReadTime);
+            }
+
+            [Fact]
+            public async Task OnlyAffectsSpecifiedUser()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var notificationService = new NotificationService(context, LoggerMock.Object);
+
+                var user1 = TestDataBuilder.CreateUser(id: "user-1");
+                var user2 = TestDataBuilder.CreateUser(id: "user-2");
+                context.Users.AddRange(user1, user2);
+                await context.SaveChangesAsync();
+
+                var user1Notification = TestDataBuilder.CreateNotification(
+                    userId: user1.Id,
+                    notificationType: NotificationType.ShareStatusChanged,
+                    shareId: 1,
+                    readAt: null
+                );
+                var user2Notification = TestDataBuilder.CreateNotification(
+                    userId: user2.Id,
+                    notificationType: NotificationType.ShareStatusChanged,
+                    shareId: 1,
+                    readAt: null
+                );
+                context.Notifications.AddRange(user1Notification, user2Notification);
+                await context.SaveChangesAsync();
+
+                // Act
+                await notificationService.MarkAllShareNotificationsAsReadForUserAsync(1, user1.Id);
+
+                // Assert
+                var updatedUser1Notification = await context.Notifications.FindAsync(user1Notification.Id);
+                var updatedUser2Notification = await context.Notifications.FindAsync(user2Notification.Id);
+
+                updatedUser1Notification!.ReadAt.Should().NotBeNull();
+                updatedUser2Notification!.ReadAt.Should().BeNull();
+            }
+
+            [Fact]
+            public async Task OnlyAffectsSpecifiedShare()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var notificationService = new NotificationService(context, LoggerMock.Object);
+
+                var user = TestDataBuilder.CreateUser(id: "user-1");
+                context.Users.Add(user);
+                await context.SaveChangesAsync();
+
+                var share1Notification = TestDataBuilder.CreateNotification(
+                    userId: user.Id,
+                    notificationType: NotificationType.ShareStatusChanged,
+                    shareId: 1,
+                    readAt: null
+                );
+                var share2Notification = TestDataBuilder.CreateNotification(
+                    userId: user.Id,
+                    notificationType: NotificationType.ShareStatusChanged,
+                    shareId: 2,
+                    readAt: null
+                );
+                context.Notifications.AddRange(share1Notification, share2Notification);
+                await context.SaveChangesAsync();
+
+                // Act
+                await notificationService.MarkAllShareNotificationsAsReadForUserAsync(1, user.Id);
+
+                // Assert
+                var updatedShare1Notification = await context.Notifications.FindAsync(share1Notification.Id);
+                var updatedShare2Notification = await context.Notifications.FindAsync(share2Notification.Id);
+
+                updatedShare1Notification!.ReadAt.Should().NotBeNull();
+                updatedShare2Notification!.ReadAt.Should().BeNull();
+            }
+
+            [Fact]
+            public async Task WhenMarkingAsRead_SetsReadAtToUtcNow()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var notificationService = new NotificationService(context, LoggerMock.Object);
+
+                var user = TestDataBuilder.CreateUser(id: "user-1");
+                context.Users.Add(user);
+                await context.SaveChangesAsync();
+
+                var notification = TestDataBuilder.CreateNotification(
+                    userId: user.Id,
+                    notificationType: NotificationType.ShareStatusChanged,
+                    shareId: 1,
+                    readAt: null
+                );
+                context.Notifications.Add(notification);
+                await context.SaveChangesAsync();
+
+                var beforeTime = DateTime.UtcNow.AddSeconds(-1);
+
+                // Act
+                await notificationService.MarkAllShareNotificationsAsReadForUserAsync(1, user.Id);
+
+                var afterTime = DateTime.UtcNow.AddSeconds(1);
+
+                // Assert
+                var updatedNotification = await context.Notifications.FindAsync(notification.Id);
+                updatedNotification.Should().NotBeNull();
+                updatedNotification!.ReadAt.Should().NotBeNull();
+                updatedNotification.ReadAt.Should().BeAfter(beforeTime);
+                updatedNotification.ReadAt.Should().BeBefore(afterTime);
+            }
+
+            [Fact]
+            public async Task WithNoMatchingNotifications_DoesNotThrowException()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var notificationService = new NotificationService(context, LoggerMock.Object);
+
+                var user = TestDataBuilder.CreateUser(id: "user-1");
+                context.Users.Add(user);
+                await context.SaveChangesAsync();
+
+                // Act
+                var act = async () => await notificationService.MarkAllShareNotificationsAsReadForUserAsync(999, user.Id);
 
                 // Assert
                 await act.Should().NotThrowAsync();

@@ -1759,6 +1759,50 @@ namespace BookSharingApp.Tests.Services
                 // Both should have independent archive states
                 context.ShareUserStates.Count(sus => sus.ShareId == share.Id).Should().Be(2);
             }
+
+            [Fact]
+            public async Task ArchiveShareAsync_CallsMarkAllShareNotificationsAsReadForUser()
+            {
+                // Arrange
+                using var context = DbContextHelper.CreateInMemoryContext();
+                var shareService = new ShareService(context, LoggerMock.Object, NotificationServiceMock.Object);
+
+                var lender = TestDataBuilder.CreateUser(id: "lender-1");
+                var borrower = TestDataBuilder.CreateUser(id: "borrower-1");
+                var book = TestDataBuilder.CreateBook();
+
+                context.Users.AddRange(lender, borrower);
+                context.Books.Add(book);
+                await context.SaveChangesAsync();
+
+                var userBook = TestDataBuilder.CreateUserBook(
+                    userId: lender.Id,
+                    bookId: book.Id,
+                    user: lender,
+                    book: book
+                );
+                context.UserBooks.Add(userBook);
+                await context.SaveChangesAsync();
+
+                var share = TestDataBuilder.CreateShare(
+                    userBookId: userBook.Id,
+                    borrower: borrower.Id,
+                    status: ShareStatus.HomeSafe,
+                    userBook: userBook,
+                    borrowerUser: borrower
+                );
+                context.Shares.Add(share);
+                await context.SaveChangesAsync();
+
+                // Act
+                await shareService.ArchiveShareAsync(share.Id, lender.Id);
+
+                // Assert
+                NotificationServiceMock.Verify(
+                    x => x.MarkAllShareNotificationsAsReadForUserAsync(share.Id, lender.Id),
+                    Times.Once
+                );
+            }
         }
 
         public class UpdateShareDueDateAsyncTests : ShareServiceTestBase

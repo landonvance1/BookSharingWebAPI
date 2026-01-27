@@ -37,5 +37,6 @@ namespace BookSharingApp.Models
         // Navigation properties
         public UserBook UserBook { get; set; } = null!;
         public User BorrowerUser { get; set; } = null!;
+        public ICollection<ShareUserState> ShareUserStates { get; set; } = new List<ShareUserState>();
     }
 }
