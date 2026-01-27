@@ -18,9 +18,10 @@ namespace BookSharingApp.Services
 
         public async Task CreateShareNotificationAsync(int shareId, string notificationType, string message, string createdByUserId)
         {
-            // Get the share to determine the other party
+            // Get the share to determine the other party, including archive states to avoid N+1 query
             var share = await _context.Shares
                 .Include(s => s.UserBook)
+                .Include(s => s.ShareUserStates)
                 .FirstOrDefaultAsync(s => s.Id == shareId);
 
             if (share == null)
@@ -39,6 +40,14 @@ namespace BookSharingApp.Services
 
             // Determine the recipient (the other party)
             var recipientUserId = createdByUserId == lenderId ? borrowerId : lenderId;
+
+            // Check if recipient has archived this share - if so, don't create notification
+            if (IsShareArchivedByUser(share, recipientUserId))
+            {
+                _logger.LogInformation("Skipping notification for share {ShareId} - recipient {UserId} has archived the share",
+                    shareId, recipientUserId);
+                return;
+            }
 
             var notification = new Notification
             {
@@ -118,6 +127,37 @@ namespace BookSharingApp.Services
                 _logger.LogInformation("Marked {Count} chat notifications as read for user {UserId} on share {ShareId}",
                     notifications.Count, userId, shareId);
             }
+        }
+
+        public async Task MarkAllShareNotificationsAsReadForUserAsync(int shareId, string userId)
+        {
+            var notifications = await _context.Notifications
+                .Where(n => n.UserId == userId &&
+                           n.ShareId == shareId &&
+                           n.ReadAt == null)
+                .ToListAsync();
+
+            if (notifications.Any())
+            {
+                var now = DateTime.UtcNow;
+                foreach (var notification in notifications)
+                {
+                    notification.ReadAt = now;
+                }
+
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Marked {Count} notifications as read for user {UserId} on share {ShareId} during archive",
+                    notifications.Count, userId, shareId);
+            }
+        }
+
+        /// <summary>
+        /// Checks if a user has archived a specific share using the pre-loaded ShareUserStates collection.
+        /// </summary>
+        private static bool IsShareArchivedByUser(Share share, string userId)
+        {
+            return share.ShareUserStates.Any(sus => sus.UserId == userId && sus.IsArchived);
         }
     }
 }

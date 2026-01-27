@@ -117,7 +117,7 @@ namespace BookSharingApp.Data
                 entity.Property(e => e.UserId).HasColumnName("user_id").IsRequired();
                 entity.Property(e => e.IsArchived).HasColumnName("is_archived").IsRequired();
                 entity.Property(e => e.ArchivedAt).HasColumnName("archived_at");
-                entity.HasOne(e => e.Share).WithMany().HasForeignKey(e => e.ShareId);
+                entity.HasOne(e => e.Share).WithMany(s => s.ShareUserStates).HasForeignKey(e => e.ShareId);
                 entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId);
 
                 // Ensure unique combination of ShareId and UserId

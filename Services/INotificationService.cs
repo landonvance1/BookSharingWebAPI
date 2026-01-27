@@ -13,5 +13,13 @@ namespace BookSharingApp.Services
         // Mark notifications as read
         Task MarkShareNotificationsAsReadAsync(int shareId, string userId);
         Task MarkShareChatNotificationsAsReadAsync(int shareId, string userId);
+
+        /// <summary>
+        /// Marks all unread notifications for a specific share and user as read, regardless of notification type.
+        /// Used when a user archives a share to clean up their notification list.
+        /// </summary>
+        /// <param name="shareId">The ID of the share.</param>
+        /// <param name="userId">The ID of the user whose notifications should be marked as read.</param>
+        Task MarkAllShareNotificationsAsReadForUserAsync(int shareId, string userId);
     }
 }
