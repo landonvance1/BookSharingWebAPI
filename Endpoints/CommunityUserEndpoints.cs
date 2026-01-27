@@ -7,8 +7,6 @@ using System.Security.Claims;
 
 namespace BookSharingApp.Endpoints
 {
-    public record CommunityWithMemberCountDto(int Id, string Name, bool Active, int MemberCount);
-
     public static class CommunityUserEndpoints
     {
         public static void MapCommunityUserEndpoints(this WebApplication app)
@@ -41,7 +39,19 @@ namespace BookSharingApp.Endpoints
 
                 context.CommunityUsers.Add(communityUser);
                 await context.SaveChangesAsync();
-                return Results.Created($"/community-users/community/{communityId}", communityUser);
+
+                // Return community details with updated member count
+                var communityDto = await context.Communities
+                    .Where(c => c.Id == communityId)
+                    .Select(c => new CommunityWithMemberCountDto(
+                        c.Id,
+                        c.Name,
+                        c.Active,
+                        c.Members.Count()
+                    ))
+                    .FirstAsync();
+
+                return Results.Created($"/community-users/community/{communityId}", communityDto);
             })
             .WithName("JoinCommunity")
             .WithOpenApi();

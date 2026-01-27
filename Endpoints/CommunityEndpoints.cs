@@ -20,8 +20,17 @@ namespace BookSharingApp.Endpoints
 
             communities.MapGet("/{id:int}", async (int id, ApplicationDbContext context) =>
             {
-                var community = await context.Communities.FindAsync(id);
-                return community is not null ? Results.Ok(community) : Results.NotFound();
+                var communityDto = await context.Communities
+                    .Where(c => c.Id == id)
+                    .Select(c => new CommunityWithMemberCountDto(
+                        c.Id,
+                        c.Name,
+                        c.Active,
+                        c.Members.Count()
+                    ))
+                    .FirstOrDefaultAsync();
+
+                return communityDto is not null ? Results.Ok(communityDto) : Results.NotFound();
             })
             .WithName("GetCommunityById")
             .WithOpenApi();
