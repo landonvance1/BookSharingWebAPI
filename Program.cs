@@ -5,6 +5,9 @@ using BookSharingApp.Services;
 using BookSharingApp.Hubs;
 using BookSharingApp.Middleware;
 using BookSharingApp.Common;
+using BookSharingWebAPI.Services;
+using BookSharingWebAPI.Endpoints;
+using BookSharingWebAPI.Validators;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -98,6 +101,7 @@ builder.Services.AddSingleton<IRateLimiter>(provider =>
     rateLimiter.ConfigureLimit(RateLimitNames.AuthRegister, 5, TimeSpan.FromMinutes(1)); // 5 registrations per minute
     rateLimiter.ConfigureLimit(RateLimitNames.AuthRefresh, 30, TimeSpan.FromMinutes(1)); // 30 token refreshes per minute
     rateLimiter.ConfigureLimit(RateLimitNames.ChatSend, 30, TimeSpan.FromMinutes(2)); // 30 messages per 2 minutes
+    rateLimiter.ConfigureLimit(RateLimitNames.ImageAnalysis, 10, TimeSpan.FromMinutes(1)); // 10 image analyses per minute
     return rateLimiter;
 });
 
@@ -105,6 +109,10 @@ builder.Services.AddHttpClient<IBookLookupService, OpenLibraryService>(client =>
 {
     client.DefaultRequestHeaders.Add("User-Agent", "Community Bookshare App (landonpvance@gmail.com)");
 });
+
+builder.Services.AddHttpClient<IImageAnalysisService, AzureVisionService>();
+builder.Services.AddScoped<IBookCoverAnalysisService, BookCoverAnalysisService>();
+builder.Services.AddScoped<CoverImageValidator>();
 
 var app = builder.Build();
 
@@ -137,6 +145,7 @@ app.UseStaticFiles();
 // Map endpoints
 app.MapAuthEndpoints();
 app.MapBookEndpoints();
+app.MapImageAnalysisEndpoints();
 app.MapCommunityEndpoints();
 app.MapCommunityUserEndpoints();
 app.MapUserBookEndpoints();

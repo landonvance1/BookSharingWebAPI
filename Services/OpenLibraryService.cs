@@ -110,6 +110,55 @@ namespace BookSharingApp.Services
             }
         }
 
+        public async Task<List<BookLookupResult>> SearchBooksByTextAsync(string searchText)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(searchText))
+                    return new List<BookLookupResult>();
+
+                // Use OpenLibrary's general query parameter which searches across all fields
+                var encodedQuery = Uri.EscapeDataString(searchText);
+                var response = await _httpClient.GetAsync(
+                    $"https://openlibrary.org/search.json?q={encodedQuery}&limit={Constants.MaxExternalSearchResults + 1}");
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("OpenLibrary API returned {StatusCode} for text query: {Query}",
+                        response.StatusCode, searchText);
+                    return new List<BookLookupResult>();
+                }
+
+                var jsonContent = await response.Content.ReadAsStringAsync();
+                var searchResult = JsonSerializer.Deserialize<OpenLibrarySearchResponse>(jsonContent,
+                    new JsonSerializerOptions
+                    {
+                        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+                    });
+
+                if (searchResult?.Docs?.Any() != true)
+                {
+                    _logger.LogInformation("No books found for text query: {Query}", searchText);
+                    return new List<BookLookupResult>();
+                }
+
+                return searchResult.Docs.Select(book => new BookLookupResult
+                {
+                    Title = book.Title ?? "Unknown Title",
+                    Author = book.AuthorName?.FirstOrDefault() ?? "Unknown Author",
+                    Isbn = book.Isbn?.FirstOrDefault() ?? string.Empty,
+                    ThumbnailUrl = book.CoverId != null
+                        ? $"https://covers.openlibrary.org/b/id/{book.CoverId}-M.jpg"
+                        : null
+                }).ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error searching books from OpenLibrary by text: {SearchText}", searchText);
+                return new List<BookLookupResult>();
+            }
+        }
+
         private static string CleanIsbn(string isbn)
         {
             return isbn.Replace("-", "").Replace(" ", "");
