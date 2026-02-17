@@ -110,7 +110,15 @@ builder.Services.AddHttpClient<IBookLookupService, OpenLibraryService>(client =>
     client.DefaultRequestHeaders.Add("User-Agent", "Community Bookshare App (landonpvance@gmail.com)");
 });
 
-builder.Services.AddHttpClient<IImageAnalysisService, AzureVisionService>();
+var ocrProvider = builder.Configuration["OcrProvider"] ?? "Azure";
+if (ocrProvider.Equals("Tesseract", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddScoped<IImageAnalysisService, TesseractService>();
+}
+else
+{
+    builder.Services.AddHttpClient<IImageAnalysisService, AzureVisionService>();
+}
 builder.Services.AddScoped<IBookCoverAnalysisService, BookCoverAnalysisService>();
 builder.Services.AddScoped<CoverImageValidator>();
 

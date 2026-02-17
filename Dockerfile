@@ -20,6 +20,12 @@ RUN dotnet publish BookSharingApp.csproj -c Release -o /app/publish
 # Use the official .NET 8 runtime image for the final stage
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 
+# Install Tesseract OCR for the local OCR provider option
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    && rm -rf /var/lib/apt/lists/*
+
 # Set the working directory
 WORKDIR /app
 

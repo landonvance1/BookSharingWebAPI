@@ -37,10 +37,10 @@ public class AzureVisionService : IImageAnalysisService
         var imageBytes = memoryStream.ToArray();
 
         // 2. Call Azure Vision OCR
-        List<LineResult> ocrLines = await CallAzureOcrAsync(imageBytes, contentType, cancellationToken);
+        List<OcrLine> ocrLines = await CallAzureOcrAsync(imageBytes, contentType, cancellationToken);
 
         // 3. Filter based on text size and extract words
-        var filteredWords = ExtractFilteredText(ocrLines);
+        var filteredWords = OcrTextFilter.ExtractFilteredText(ocrLines, _logger);
 
         _logger.LogInformation(
             "Cover analysis complete. Filtered words: {FilteredCount}/{TotalCount}",
@@ -50,7 +50,7 @@ public class AzureVisionService : IImageAnalysisService
         return CoverAnalysisResult.Success(filteredWords, rawText);
     }
 
-    private async Task<List<LineResult>> CallAzureOcrAsync(
+    private async Task<List<OcrLine>> CallAzureOcrAsync(
         byte[] imageBytes, string contentType, CancellationToken cancellationToken)
     {
         var requestUrl = $"{_endpoint}/vision/v3.2/read/analyze";
@@ -78,7 +78,7 @@ public class AzureVisionService : IImageAnalysisService
         return await PollForOcrResultsAsync(operationLocation, cancellationToken);
     }
 
-    private async Task<List<LineResult>> PollForOcrResultsAsync(
+    private async Task<List<OcrLine>> PollForOcrResultsAsync(
         string operationUrl, CancellationToken cancellationToken)
     {
         for (int i = 0; i < ImageAnalysisConstants.MaxOcrPollingAttempts; i++)
@@ -97,7 +97,7 @@ public class AzureVisionService : IImageAnalysisService
             {
                 return result.AnalyzeResult?.ReadResults?
                     .SelectMany(r => r.Lines)
-                    .ToList() ?? new List<LineResult>();
+                    .ToList() ?? new List<OcrLine>();
             }
 
             if (result?.Status == "failed")
@@ -105,92 +105,6 @@ public class AzureVisionService : IImageAnalysisService
         }
 
         throw new TimeoutException("OCR processing timed out");
-    }
-
-    private List<ExtractedWord> ExtractFilteredText(List<LineResult> ocrLines)
-    {
-        // Calculate maximum text size to identify what's "large"
-        // Using GetTextSize() instead of GetHeight() to handle vertical text correctly
-        var linesWithSize = ocrLines.Where(l => l.GetTextSize() > 0).ToList();
-
-        if (linesWithSize.Count == 0)
-        {
-            // Fallback to basic filtering if no bounding box data - extract words from lines
-            return ocrLines
-                .SelectMany(line => line.Text
-                    .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                    .Where(word => word.Length >= ImageAnalysisConstants.MinTitleLength &&
-                                  word.Length <= ImageAnalysisConstants.MaxTitleLength)
-                    .Select(word => new ExtractedWord { Text = word, Height = 0 }))
-                .ToList();
-        }
-
-        // Get the size of the largest text
-        var maxSize = linesWithSize.Max(l => l.GetTextSize());
-
-        // Keep lines that are at least x% of the largest text size
-        // This captures title and author while filtering out small promotional text and vertical spine text
-        var sizeThreshold = maxSize * ImageAnalysisConstants.TextSizeFilterThresholdPercentage;
-
-        // Extract words from large text lines, preserving order (top to bottom, left to right)
-        var extractedWords = ocrLines
-            .Where(l => l.GetTextSize() >= sizeThreshold)
-            .SelectMany(line => line.Text
-                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                .Select(word => new ExtractedWord
-                {
-                    Text = word,
-                    Height = line.GetTextSize() // Store size (not just height) for retry logic
-                }))
-            .ToList();
-
-        _logger.LogDebug(
-            "Text filtering: MaxSize={MaxSize}, Threshold={Threshold}, " +
-            "TotalLines={Total}, ExtractedWords={WordCount}",
-            maxSize, sizeThreshold, ocrLines.Count, extractedWords.Count);
-
-        // Apply word count limits
-        return ApplyWordCountLimits(extractedWords);
-    }
-
-    private List<ExtractedWord> ApplyWordCountLimits(List<ExtractedWord> words)
-    {
-        var wordCount = words.Count;
-
-        // Within range - return as-is
-        if (wordCount >= ImageAnalysisConstants.MinSearchWords &&
-            wordCount <= ImageAnalysisConstants.MaxSearchWords)
-        {
-            return words;
-        }
-
-        // Too few words - keep all we have
-        if (wordCount < ImageAnalysisConstants.MinSearchWords)
-        {
-            _logger.LogDebug("Word count {Count} below minimum {Min}, keeping all words",
-                wordCount, ImageAnalysisConstants.MinSearchWords);
-            return words;
-        }
-
-        // Too many words - keep largest words up to max limit
-        _logger.LogDebug("Word count {Count} exceeds maximum {Max}, keeping largest words",
-            wordCount, ImageAnalysisConstants.MaxSearchWords);
-
-        // Sort by height descending (largest first), take max allowed
-        var largestWords = words
-            .OrderByDescending(w => w.Height)
-            .Take(ImageAnalysisConstants.MaxSearchWords)
-            .ToList();
-
-        // Restore original order (top to bottom, left to right)
-        var originalOrder = words
-            .Where(w => largestWords.Contains(w))
-            .ToList();
-
-        _logger.LogDebug("Trimmed from {Original} to {Final} words",
-            wordCount, originalOrder.Count);
-
-        return originalOrder;
     }
 }
 
@@ -208,70 +122,5 @@ internal class AnalyzeResultData
 
 internal class ReadResult
 {
-    public List<LineResult> Lines { get; set; } = new();
+    public List<OcrLine> Lines { get; set; } = new();
 }
-
-internal class LineResult
-{
-    public string Text { get; set; } = "";
-    public List<double>? BoundingBox { get; set; }
-
-    public double GetHeight()
-    {
-        if (BoundingBox == null || BoundingBox.Count < 8)
-            return 0;
-
-        // BoundingBox is [x1,y1, x2,y2, x3,y3, x4,y4]
-        // Height is roughly the difference between top and bottom y coordinates
-        var topY = Math.Min(BoundingBox[1], BoundingBox[3]);
-        var bottomY = Math.Max(BoundingBox[5], BoundingBox[7]);
-        return bottomY - topY;
-    }
-
-    public double GetWidth()
-    {
-        if (BoundingBox == null || BoundingBox.Count < 8)
-            return 0;
-
-        // Width is the difference between left and right x coordinates
-        var leftX = Math.Min(BoundingBox[0], BoundingBox[6]);
-        var rightX = Math.Max(BoundingBox[2], BoundingBox[4]);
-        return rightX - leftX;
-    }
-
-    /// <summary>
-    /// Determines if text is oriented vertically based on bounding box geometry.
-    /// BoundingBox points: [x1,y1, x2,y2, x3,y3, x4,y4] (typically top-left, top-right, bottom-right, bottom-left)
-    /// </summary>
-    public bool IsVertical()
-    {
-        if (BoundingBox == null || BoundingBox.Count < 8)
-            return false;
-
-        // Calculate the vector from first point to second point (first edge)
-        var dx = Math.Abs(BoundingBox[2] - BoundingBox[0]);
-        var dy = Math.Abs(BoundingBox[3] - BoundingBox[1]);
-
-        // If the first edge is more vertical than horizontal, text is vertical
-        return dy > dx;
-    }
-
-    /// <summary>
-    /// Gets the text size (font size), correctly handling both horizontal and vertical orientations.
-    /// - For horizontal text: uses height (vertical extent of characters)
-    /// - For vertical text: uses width (horizontal extent of characters)
-    /// </summary>
-    public double GetTextSize()
-    {
-        var height = GetHeight();
-        var width = GetWidth();
-
-        if (height == 0 || width == 0)
-            return 0;
-
-        // For vertical text, width represents the font size
-        // For horizontal text, height represents the font size
-        return IsVertical() ? width : height;
-    }
-}
-

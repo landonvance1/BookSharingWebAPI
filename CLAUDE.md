@@ -144,7 +144,13 @@ dotnet user-secrets set "AzureVision:Endpoint" "YOUR_AZURE_VISION_ENDPOINT"
 dotnet user-secrets set "AzureVision:ApiKey" "YOUR_AZURE_VISION_API_KEY"
 ```
 
-Replace `YOUR_LOCAL_PASSWORD` with your local PostgreSQL password, `YOUR_JWT_SECRET_KEY` with a secure 32+ character key for JWT token signing, and the Azure Vision values with your Azure Computer Vision resource endpoint and key. This keeps credentials out of source control while allowing local development.
+For Tesseract (local OCR provider, set `OcrProvider: "Tesseract"` in config):
+```bash
+dotnet user-secrets set "Tesseract:TessDataPath" "/path/to/tessdata"
+dotnet user-secrets set "Tesseract:Language" "eng"
+```
+
+Replace `YOUR_LOCAL_PASSWORD` with your local PostgreSQL password, `YOUR_JWT_SECRET_KEY` with a secure 32+ character key for JWT token signing, and the Azure Vision values with your Azure Computer Vision resource endpoint and key. For Tesseract, set `TessDataPath` to your local tessdata directory (e.g. `/usr/share/tesseract-ocr/5/tessdata` on Ubuntu). This keeps credentials out of source control while allowing local development.
 
 **Prerequisites for local development:**
 1. Install PostgreSQL locally
