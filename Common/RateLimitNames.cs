@@ -11,6 +11,7 @@ namespace BookSharingApp.Common
     ///   <item>AuthRegister: 5 requests per minute per IP (prevents account creation spam)</item>
     ///   <item>AuthRefresh: 30 requests per minute per IP (prevents token refresh abuse)</item>
     ///   <item>ChatSend: 30 messages per 2 minutes per user (prevents chat spam)</item>
+    ///   <item>ImageAnalysis: 10 requests per minute per user (prevents abuse of expensive OCR calls)</item>
     /// </list>
     /// </para>
     /// </summary>
@@ -33,5 +34,8 @@ namespace BookSharingApp.Common
 
         /// <summary>Rate limit for token refresh attempts (30 per minute per IP).</summary>
         public const string AuthRefresh = "auth-refresh";
+
+        /// <summary>Rate limit for book cover image analysis (10 per minute per user).</summary>
+        public const string ImageAnalysis = "image-analysis";
     }
 }

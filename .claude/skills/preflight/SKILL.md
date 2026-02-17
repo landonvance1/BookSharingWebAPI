@@ -19,7 +19,7 @@ This skill provides a sanity check for Claude Code sessions before commits and P
 
 1. Run `dotnet build WebAPI.sln` - If this fails, stop and report errors
 2. Run `dotnet format WebAPI.sln --verify-no-changes` - Report any formatting issues
-3. Run `dotnet test WebAPI.sln` - Capture test results and counts
+3. Run `dotnet test BookSharingApp.Tests/BookSharingApp.Tests.csproj` - Capture test results and counts (integration tests are excluded)
 
 **Output Requirements:**
 

@@ -22,6 +22,8 @@ services:
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING}
       - JWT_KEY=${JWT_KEY}
+      - AzureVision__Endpoint=${AZURE_VISION_ENDPOINT}
+      - AzureVision__ApiKey=${AZURE_VISION_API_KEY}
     volumes:
       # Mount static files for development
       - ./wwwroot:/app/wwwroot
@@ -43,6 +45,8 @@ services:
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING}
       - JWT_KEY=${JWT_KEY}
+      - AzureVision__Endpoint=${AZURE_VISION_ENDPOINT}
+      - AzureVision__ApiKey=${AZURE_VISION_API_KEY}
     volumes:
       - ./wwwroot:/app/wwwroot
     depends_on:
